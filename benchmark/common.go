@@ -15,7 +15,7 @@ type TestConfig struct {
 	Variant1         int
 	Variant2         int
 	IgnoreErrors     bool
-	SremAfterSadd    bool
+	Churn            bool
 }
 
 type Runner interface {

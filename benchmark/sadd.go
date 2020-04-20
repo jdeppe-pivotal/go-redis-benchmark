@@ -81,7 +81,7 @@ func (sadd *SaddBenchmark) doSadd(client *redis.Client, results chan time.Durati
 			panic(err)
 		}
 
-		if sadd.config.SremAfterSadd {
+		if sadd.config.Churn {
 			err := client.SRem(key, member).Err()
 			if err != nil && !sadd.config.IgnoreErrors {
 				panic(err)

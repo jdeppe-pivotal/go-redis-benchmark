@@ -62,8 +62,15 @@ func processOptions() (string, *benchmark.TestConfig) {
 	flag.StringVar(&hostsPorts, "h", HOST_PORT, "comma-separated host:port list")
 	flag.IntVar(&iterations, "i", ITERATIONS, "iterations of the test to run - divided among clients")
 	flag.IntVar(&clientCount, "c", CLIENT_COUNT, "number of clients to use")
-	flag.IntVar(&variant1, "x", 1, "variant 1 - test dependent. For pubsub this is the number of subscribers and -c should be used for publishers")
-	flag.IntVar(&variant2, "y", 1, "variant 2 - test dependent")
+	flag.IntVar(&variant1, "x", 1, `variant 1 - test dependent.
+  sadd: the range of sets to use
+  smembers: the range of sets to use
+  del: the range of sets to use
+  pubsub: the number of subscribers and -c should be used for publishers`)
+	flag.IntVar(&variant2, "y", 1, `variant 2 - test dependent.
+  sadd: the range of random member names to add
+  smembers: the number of elements to add to each set
+  del: the number of entries to create in a set before deleting it`)
 	flag.StringVar(&testName, "t", "sadd", "benchmark to run: sadd, smembers, del, pubsub")
 	flag.BoolVar(&help, "help", false, "help")
 	flag.BoolVar(&ignoreErrors, "ignore-errors", false, "ignore errors from Redis calls")
@@ -73,6 +80,7 @@ func processOptions() (string, *benchmark.TestConfig) {
 
 	if help {
 		flag.Usage()
+		os.Exit(0)
 	}
 
 	hostsPortsList := strings.Split(hostsPorts, ",")

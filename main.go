@@ -235,7 +235,7 @@ func (bm *Benchmark) throughputTicker(value *int, quitter chan bool) {
 		select {
 		case <-ticker.C:
 			resultsNow := *value
-			log.Printf("-> %d ops/sec (in flight: %d)\n", resultsNow-lastResultCount, int(*bm.expectedResultCount) - *bm.resultCount)
+			log.Printf("-> %d ops/sec (in flight: %d)\n", resultsNow-lastResultCount, int(*bm.expectedResultCount)-*bm.resultCount)
 			lastResultCount = resultsNow
 		case <-quitter:
 			ticker.Stop()

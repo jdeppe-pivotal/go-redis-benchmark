@@ -64,7 +64,7 @@ func processOptions() (string, *benchmark.TestConfig) {
 	flag.IntVar(&clientCount, "c", CLIENT_COUNT, "number of clients to use")
 	flag.IntVar(&variant1, "x", 1, "variant 1 - test dependent. For pubsub this is the number of subscribers and -c should be used for publishers")
 	flag.IntVar(&variant2, "y", 1, "variant 2 - test dependent")
-	flag.StringVar(&testName, "t", "pubsub", "benchmark to run")
+	flag.StringVar(&testName, "t", "sadd", "benchmark to run: sadd, smembers, pubsub")
 	flag.BoolVar(&help, "help", false, "help")
 	flag.BoolVar(&ignoreErrors, "ignore-errors", false, "ignore errors from Redis calls")
 	flag.BoolVar(&churn, "churn", false, "delete entries immediately after creation")
@@ -122,6 +122,9 @@ func NewBenchmark(testName string, testConfig *benchmark.TestConfig) *Benchmark 
 	switch testName {
 	case "sadd":
 		runner = benchmark.NewSaddBenchmark(testConfig)
+		break
+	case "smembers":
+		runner = benchmark.NewSmembersBenchmark(testConfig)
 		break
 	case "pubsub":
 		runner = benchmark.NewPubSubBenchmark(testConfig)

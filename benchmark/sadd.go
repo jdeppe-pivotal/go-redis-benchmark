@@ -32,7 +32,7 @@ func (sadd *SaddBenchmark) ResultsPerOperation() int32 {
 	return 1
 }
 
-func (sadd *SaddBenchmark) DoOneOperation(client *redis.Client, results chan time.Duration) {
+func (sadd *SaddBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult) {
 	executionStartTime := time.Now()
 
 	key := fmt.Sprintf("mykey-%d", sadd.randInt.Intn(sadd.config.Variant1))
@@ -49,5 +49,8 @@ func (sadd *SaddBenchmark) DoOneOperation(client *redis.Client, results chan tim
 		}
 	}
 
-	results <- time.Now().Sub(executionStartTime)
+	results <- &OperationResult{
+		Operation: "sadd",
+		Latency:   time.Now().Sub(executionStartTime),
+	}
 }

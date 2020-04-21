@@ -47,7 +47,7 @@ func (smembers *SmembersBenchmark) ResultsPerOperation() int32 {
 	return 1
 }
 
-func (smembers *SmembersBenchmark) DoOneOperation(client *redis.Client, results chan time.Duration) {
+func (smembers *SmembersBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult) {
 	executionStartTime := time.Now()
 
 	key := fmt.Sprintf("mykey-%d", smembers.randInt.Intn(smembers.config.Variant1))
@@ -57,6 +57,9 @@ func (smembers *SmembersBenchmark) DoOneOperation(client *redis.Client, results 
 		panic(err)
 	}
 
-	results <- time.Now().Sub(executionStartTime)
+	results <- &OperationResult{
+		Operation: "smembers",
+		Latency:   time.Now().Sub(executionStartTime),
+	}
 }
 

@@ -74,7 +74,7 @@ func (bm *PubSubBenchmark) ResultsPerOperation() int32 {
 	return int32(bm.config.Variant1)
 }
 
-func (bm *PubSubBenchmark) DoOneOperation(publisher *redis.Client, results chan time.Duration) {
+func (bm *PubSubBenchmark) DoOneOperation(publisher *redis.Client, results chan *OperationResult) {
 	startTime := time.Now()
 	message := fmt.Sprintf("%d", startTime.UnixNano())
 	err := publisher.Publish(CHANNEL, message).Err()
@@ -83,7 +83,7 @@ func (bm *PubSubBenchmark) DoOneOperation(publisher *redis.Client, results chan 
 	}
 }
 
-func receiveMessages(subscriber *Subscriber, results chan time.Duration) {
+func receiveMessages(subscriber *Subscriber, results chan *OperationResult) {
 	for msg := range subscriber.pubsub.Channel() {
 		messageReceived := time.Now().UnixNano()
 
@@ -93,7 +93,10 @@ func receiveMessages(subscriber *Subscriber, results chan time.Duration) {
 		}
 
 		latency := messageReceived - int64(messageCreated)
-		results <- time.Duration(latency)
+		results <- &OperationResult{
+			Operation: "pubsub",
+			Latency:   time.Duration(latency),
+		}
 
 		//fmt.Printf("Received: %s\n", msg.Payload)
 	}

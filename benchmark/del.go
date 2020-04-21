@@ -34,15 +34,21 @@ func (del *DelBenchmark) Cleanup() {
 }
 
 func (del *DelBenchmark) ResultsPerOperation() int32 {
-	return 1
+	return 2
 }
 
-func (del *DelBenchmark) DoOneOperation(client *redis.Client, results chan time.Duration) {
+func (del *DelBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult) {
 	key := fmt.Sprintf("mykey-%d", del.randInt.Intn(del.config.Variant1))
 
+	saddStart := time.Now()
 	err := client.SAdd(key, del.members).Err()
 	if err != nil && !del.config.IgnoreErrors {
 		panic(err)
+	}
+
+	results <- &OperationResult{
+		Operation: "sadd",
+		Latency:   time.Now().Sub(saddStart),
 	}
 
 	executionStartTime := time.Now()
@@ -51,8 +57,9 @@ func (del *DelBenchmark) DoOneOperation(client *redis.Client, results chan time.
 		panic(err)
 	}
 
-	latency := time.Now().Sub(executionStartTime)
-
-	results <- latency
+	results <- &OperationResult{
+		Operation: "del",
+		Latency:   time.Now().Sub(executionStartTime),
+	}
 }
 

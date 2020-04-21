@@ -33,7 +33,7 @@ type Benchmark struct {
 	endTime             time.Time
 	runners             map[string]benchmark.Runner
 	workChannel         chan *WorkUnit
-	latencies           map[int]int
+	latencies           map[string]map[int]int
 	resultCount         *int
 	expectedResultCount *int32
 	tickQuitter         chan bool
@@ -93,7 +93,7 @@ func processOptions() (string, *benchmark.TestConfig) {
 		Variant2:     variant2,
 		IgnoreErrors: ignoreErrors,
 		Churn:        churn,
-		Results:      make(chan time.Duration),
+		Results:      make(chan *benchmark.OperationResult),
 	}
 }
 
@@ -127,6 +127,9 @@ func (bm *Benchmark) launch() {
 func NewBenchmark(testName string, testConfig *benchmark.TestConfig) *Benchmark {
 	var runner benchmark.Runner
 
+	latencies := make(map[string]map[int]int)
+	latencies[testName] = make(map[int]int)
+
 	switch testName {
 	case "sadd":
 		runner = benchmark.NewSaddBenchmark(testConfig)
@@ -136,6 +139,8 @@ func NewBenchmark(testName string, testConfig *benchmark.TestConfig) *Benchmark 
 		break
 	case "del":
 		runner = benchmark.NewDelBenchmark(testConfig)
+		// Because del also does sadds
+		latencies["sadd"] = make(map[int]int)
 		break
 	case "pubsub":
 		runner = benchmark.NewPubSubBenchmark(testConfig)
@@ -154,7 +159,7 @@ func NewBenchmark(testName string, testConfig *benchmark.TestConfig) *Benchmark 
 		testConfig:          testConfig,
 		runners:             runners,
 		workChannel:         make(chan *WorkUnit, testConfig.ClientCount*2),
-		latencies:           make(map[int]int),
+		latencies:           latencies,
 		resultCount:         new(int),
 		expectedResultCount: new(int32),
 		tickQuitter:         make(chan bool),
@@ -174,8 +179,11 @@ func NewBenchmark(testName string, testConfig *benchmark.TestConfig) *Benchmark 
 }
 
 func (bm *Benchmark) processResults(wg *sync.WaitGroup) {
+	var lateMap map[int]int
+
 	for r := range bm.testConfig.Results {
-		bm.latencies[int(r.Milliseconds())+1]++
+		lateMap = bm.latencies[r.Operation]
+		lateMap[int(r.Latency.Milliseconds())+1]++
 
 		*bm.resultCount++
 		if *bm.resultCount == int(atomic.LoadInt32(bm.expectedResultCount)) {
@@ -208,22 +216,26 @@ func (bm *Benchmark) produceWork() {
 }
 
 func (bm *Benchmark) printSummary() {
-	fmt.Println()
 
-	var keys []int
-	summedValues := 0
-	for k, v := range bm.latencies {
-		keys = append(keys, k)
-		summedValues += v
-	}
+	for operation, lateMap := range bm.latencies {
+		fmt.Println()
+		fmt.Printf("Latencies for: %s\n", operation)
+		fmt.Println("============================")
+		var keys []int
+		summedValues := 0
+		for k, v := range lateMap {
+			keys = append(keys, k)
+			summedValues += v
+		}
 
-	sort.Sort(sort.Reverse(sort.IntSlice(keys)))
+		sort.Sort(sort.Reverse(sort.IntSlice(keys)))
 
-	remainingSummed := summedValues
-	for _, k := range keys {
-		percent := (float64(remainingSummed) / float64(summedValues)) * 100
-		fmt.Printf("%8.3f%% <= %4d ms  (%d/%d)\n", percent, k, remainingSummed, summedValues)
-		remainingSummed -= bm.latencies[k]
+		remainingSummed := summedValues
+		for _, k := range keys {
+			percent := (float64(remainingSummed) / float64(summedValues)) * 100
+			fmt.Printf("%8.3f%% <= %4d ms  (%d/%d)\n", percent, k, remainingSummed, summedValues)
+			remainingSummed -= lateMap[k]
+		}
 	}
 
 	throughput := float64(bm.testConfig.Iterations) / bm.endTime.Sub(bm.startTime).Seconds()

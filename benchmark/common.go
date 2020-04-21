@@ -21,6 +21,11 @@ type OperationResult struct {
 	Operation string
 }
 
+type ThroughputResult struct {
+	OperationCount int
+	ElapsedTime int64
+}
+
 type Runner interface {
 	Setup()
 	DoOneOperation(client *redis.Client, results chan *OperationResult)

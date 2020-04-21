@@ -34,6 +34,7 @@ type Benchmark struct {
 	runners             map[string]benchmark.Runner
 	workChannel         chan *WorkUnit
 	latencies           map[string]map[int]int
+	throughput          map[string]*benchmark.ThroughputResult
 	resultCount         *int
 	expectedResultCount *int32
 	tickQuitter         chan bool
@@ -128,7 +129,12 @@ func NewBenchmark(testName string, testConfig *benchmark.TestConfig) *Benchmark 
 	var runner benchmark.Runner
 
 	latencies := make(map[string]map[int]int)
+	throughput := make(map[string]*benchmark.ThroughputResult)
 	latencies[testName] = make(map[int]int)
+	throughput[testName] = &benchmark.ThroughputResult{
+		OperationCount: 0,
+		ElapsedTime: 0,
+	}
 
 	switch testName {
 	case "sadd":
@@ -141,6 +147,10 @@ func NewBenchmark(testName string, testConfig *benchmark.TestConfig) *Benchmark 
 		runner = benchmark.NewDelBenchmark(testConfig)
 		// Because del also does sadds
 		latencies["sadd"] = make(map[int]int)
+		throughput["sadd"] = &benchmark.ThroughputResult{
+			OperationCount: 0,
+			ElapsedTime: 0,
+		}
 		break
 	case "pubsub":
 		runner = benchmark.NewPubSubBenchmark(testConfig)
@@ -180,10 +190,15 @@ func NewBenchmark(testName string, testConfig *benchmark.TestConfig) *Benchmark 
 
 func (bm *Benchmark) processResults(wg *sync.WaitGroup) {
 	var lateMap map[int]int
+	var throughputResult *benchmark.ThroughputResult
 
 	for r := range bm.testConfig.Results {
 		lateMap = bm.latencies[r.Operation]
 		lateMap[int(r.Latency.Milliseconds())+1]++
+		throughputResult = bm.throughput[r.Operation]
+		throughputResult.OperationCount++
+		throughputResult.ElapsedTime += r.Latency.Nanoseconds()
+
 
 		*bm.resultCount++
 		if *bm.resultCount == int(atomic.LoadInt32(bm.expectedResultCount)) {

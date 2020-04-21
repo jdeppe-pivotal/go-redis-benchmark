@@ -8,7 +8,9 @@ import (
 )
 
 type PubSubBenchmark struct {
-	config *TestConfig
+	config      *TestConfig
+	subscribers []*Subscriber
+	publisher   *redis.Client
 }
 
 type Subscriber struct {
@@ -18,27 +20,27 @@ type Subscriber struct {
 }
 
 const (
-	DONE = "DONE"
+	CHANNEL = "benchmarkChannel"
 )
 
 var _ Runner = (*PubSubBenchmark)(nil)
 
 func NewPubSubBenchmark(config *TestConfig) *PubSubBenchmark {
-	return &PubSubBenchmark{config}
+	return &PubSubBenchmark{
+		config: config,
+	}
 }
 
-func (bm *PubSubBenchmark) Launch() {
-	channelName := "benchmarkChannel"
+func (bm *PubSubBenchmark) Setup() {
+	bm.subscribers = make([]*Subscriber, 0, bm.config.Variant1)
 
-	subscribers := make([]*Subscriber, 0, bm.config.ClientCount)
-
-	for i := 0; i < bm.config.ClientCount; i++ {
-		// Establish connection
+	// Establish connections for subscribers
+	for i := 0; i < bm.config.Variant1; i++ {
 		client := redis.NewClient(&redis.Options{
-			Addr: "localhost:6379",
+			Addr: bm.config.HostPort[i % len(bm.config.HostPort)],
 		})
 
-		pubsub := client.Subscribe(channelName)
+		pubsub := client.Subscribe(CHANNEL)
 
 		err := waitForSubscription(pubsub)
 		if err != nil {
@@ -50,55 +52,39 @@ func (bm *PubSubBenchmark) Launch() {
 			client: client,
 			pubsub: pubsub,
 		}
-		subscribers = append(subscribers, subscription)
+		bm.subscribers = append(bm.subscribers, subscription)
 	}
 
-	fmt.Printf("Subscribed %d clients\n", bm.config.ClientCount)
-
-	publisher := redis.NewClient(&redis.Options{
-		Addr: "localhost:6379",
+	bm.publisher = redis.NewClient(&redis.Options{
+		Addr: bm.config.HostPort[0],
 	})
 
-	go bm.publishMessages(publisher, channelName)
-
-	results := make(chan int)
-	for _, s := range subscribers {
-		go receiveMessages(s, results)
+	for _, s := range bm.subscribers {
+		go receiveMessages(s, bm.config.Results)
 	}
-
-	fmt.Println("Waiting for results")
-	latencies := make(map[int]int)
-	clientsDone := 0
-	messagesReceived := 0
-	for r := range results {
-		if r < 0 {
-			clientsDone++
-			if clientsDone == bm.config.ClientCount {
-				break
-			}
-			continue
-		}
-
-		latencies[r]++
-		messagesReceived++
-	}
-
-	for _, s := range subscribers {
-		_ = s.pubsub.Unsubscribe(channelName)
-	}
-
-	fmt.Println()
-	fmt.Printf("Clients: %d\n", bm.config.ClientCount)
-	fmt.Printf("Total messages received: %d\n\n", messagesReceived)
-	printSummary(latencies)
 }
 
-func receiveMessages(subscriber *Subscriber, results chan int) {
-	for msg := range subscriber.pubsub.Channel() {
-		if msg.Payload == DONE {
-			break
-		}
+func (bm *PubSubBenchmark) Cleanup() {
+	for _, s := range bm.subscribers {
+		_ = s.pubsub.Unsubscribe(CHANNEL)
+	}
+}
 
+func (bm *PubSubBenchmark) ResultsPerOperation() int32 {
+	return int32(bm.config.Variant1)
+}
+
+func (bm *PubSubBenchmark) DoOneOperation(publisher *redis.Client, results chan time.Duration) {
+	startTime := time.Now()
+	message := fmt.Sprintf("%d", startTime.UnixNano())
+	err := publisher.Publish(CHANNEL, message).Err()
+	if err != nil {
+		panic(err)
+	}
+}
+
+func receiveMessages(subscriber *Subscriber, results chan time.Duration) {
+	for msg := range subscriber.pubsub.Channel() {
 		messageReceived := time.Now().UnixNano()
 
 		messageCreated, err := strconv.Atoi(msg.Payload)
@@ -106,28 +92,10 @@ func receiveMessages(subscriber *Subscriber, results chan int) {
 			panic(err)
 		}
 
-		latency := int(float64((messageReceived-int64(messageCreated))/1e6) + 1)
-		results <- latency
-	}
+		latency := messageReceived - int64(messageCreated)
+		results <- time.Duration(latency)
 
-	// Indicate we're done receiving messages
-	results <- -1
-}
-
-func (bm *PubSubBenchmark) publishMessages(publisher *redis.Client, channelName string) {
-	for i := 0; i < bm.config.ClientIterations; i++ {
-		startTime := time.Now()
-		message := fmt.Sprintf("%d", startTime.UnixNano())
-		err := publisher.Publish(channelName, message).Err()
-		if err != nil {
-			panic(err)
-		}
-		time.Sleep(time.Millisecond * 20)
-	}
-
-	err := publisher.Publish(channelName, DONE).Err()
-	if err != nil {
-		panic(err)
+		//fmt.Printf("Received: %s\n", msg.Payload)
 	}
 }
 

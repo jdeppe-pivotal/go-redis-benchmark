@@ -49,7 +49,5 @@ func (sadd *SaddBenchmark) DoOneOperation(client *redis.Client, results chan tim
 		}
 	}
 
-	latency := time.Now().Sub(executionStartTime)
-
-	results <- latency
+	results <- time.Now().Sub(executionStartTime)
 }

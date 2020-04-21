@@ -52,16 +52,11 @@ func (smembers *SmembersBenchmark) DoOneOperation(client *redis.Client, results 
 
 	key := fmt.Sprintf("mykey-%d", smembers.randInt.Intn(smembers.config.Variant1))
 
-	smembersResults := client.SMembers(key)
-	err := smembersResults.Err()
-
-	//fmt.Printf("members: %s \n" , smembersResults.String())
+	err := client.SMembers(key).Err()
 	if err != nil && !smembers.config.IgnoreErrors {
 		panic(err)
 	}
 
-	latency := time.Now().Sub(executionStartTime)
-	results <- latency
-
+	results <- time.Now().Sub(executionStartTime)
 }
 

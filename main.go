@@ -181,7 +181,6 @@ func (bm *Benchmark) consumeWork(hostPort string, wg *sync.WaitGroup) {
 	})
 
 	for work := range bm.workChannel {
-		//atomic.AddInt32(bm.expectedResultCount, bm.runners[work.operation].ResultsPerOperation())
 		bm.runners[work.operation].DoOneOperation(client, bm.testConfig.Results)
 	}
 

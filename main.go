@@ -75,7 +75,7 @@ func processOptions() (string, *benchmark.TestConfig) {
   srem: the number of elements to add to each set
   smembers: the number of elements to add to each set
   del: the number of entries to create in a set before deleting it`)
-	flag.StringVar(&testName, "t", "sadd", "benchmark to run: sadd, smembers, srem, del, pubsub")
+	flag.StringVar(&testName, "t", "sadd", "benchmark to run: sadd, smembers, srem, del, pubsub, setOperations")
 	flag.BoolVar(&disableFlush, "disable-flush", false, "disable flush after each benchmark runs")
 	flag.BoolVar(&help, "help", false, "help")
 	flag.BoolVar(&ignoreErrors, "ignore-errors", false, "ignore errors from Redis calls")
@@ -166,6 +166,20 @@ func NewBenchmark(testName string, testConfig *benchmark.TestConfig) *Benchmark 
 		// Because srem also does sadds
 		latencies["sadd"] = make(map[int]int)
 		throughput["sadd"] = new (benchmark.ThroughputResult)
+		break
+	case "setOperations":
+		runner = benchmark.NewSetOperationsBenchmark(testConfig)
+		latencies["sadd"] = make(map[int]int)
+		throughput["sadd"] = new (benchmark.ThroughputResult)
+
+		latencies["srem"] = make(map[int]int)
+		throughput["srem"] = new (benchmark.ThroughputResult)
+
+		latencies["smembers"] = make(map[int]int)
+		throughput["smembers"] = new (benchmark.ThroughputResult)
+
+		latencies["del"] = make(map[int]int)
+		throughput["del"] = new (benchmark.ThroughputResult)
 		break
 	case "del":
 		runner = benchmark.NewDelBenchmark(testConfig)

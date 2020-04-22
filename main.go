@@ -60,6 +60,7 @@ func processOptions() (string, *benchmark.TestConfig) {
 	var help bool
 	var ignoreErrors bool
 	var churn bool
+	var bulk bool
 
 	flag.StringVar(&hostsPorts, "h", HOST_PORT, "comma-separated host:port list")
 	flag.IntVar(&iterations, "i", ITERATIONS, "iterations of the test to run - divided among clients")
@@ -79,7 +80,8 @@ func processOptions() (string, *benchmark.TestConfig) {
 	flag.BoolVar(&disableFlush, "disable-flush", false, "disable flush after each benchmark runs")
 	flag.BoolVar(&help, "help", false, "help")
 	flag.BoolVar(&ignoreErrors, "ignore-errors", false, "ignore errors from Redis calls")
-	flag.BoolVar(&churn, "churn", false, "delete entries immediately after creation")
+	flag.BoolVar(&bulk, "bulk", false, "sadd and srem will be given multiple members to add/remove based on -y option")
+	flag.BoolVar(&churn, "churn", false, "delete entries immediately after creation by sadd benchmark")
 
 	flag.Parse()
 
@@ -99,6 +101,7 @@ func processOptions() (string, *benchmark.TestConfig) {
 		DisableFlush: disableFlush,
 		IgnoreErrors: ignoreErrors,
 		Churn:        churn,
+		Bulk:         bulk,
 		Results:      make(chan *benchmark.OperationResult),
 	}
 }
@@ -148,47 +151,55 @@ func NewBenchmark(testName string, testConfig *benchmark.TestConfig) *Benchmark 
 
 	latencies := make(map[string]map[int]int)
 	throughput := make(map[string]*benchmark.ThroughputResult)
-	latencies[testName] = make(map[int]int)
-	throughput[testName] = &benchmark.ThroughputResult{
-		OperationCount: 0,
-		ElapsedTime:    0,
-	}
 
 	switch testName {
 	case "sadd":
 		runner = benchmark.NewSaddBenchmark(testConfig)
+		latencies[testName] = make(map[int]int)
+		throughput[testName] = new(benchmark.ThroughputResult)
+
 		break
 	case "smembers":
 		runner = benchmark.NewSmembersBenchmark(testConfig)
+		latencies[testName] = make(map[int]int)
+		throughput[testName] = new(benchmark.ThroughputResult)
+
 		break
 	case "srem":
 		runner = benchmark.NewSremBenchmark(testConfig)
+		latencies[testName] = make(map[int]int)
+		throughput[testName] = new(benchmark.ThroughputResult)
 		// Because srem also does sadds
 		latencies["sadd"] = make(map[int]int)
-		throughput["sadd"] = new (benchmark.ThroughputResult)
+		throughput["sadd"] = new(benchmark.ThroughputResult)
 		break
 	case "setOperations":
 		runner = benchmark.NewSetOperationsBenchmark(testConfig)
 		latencies["sadd"] = make(map[int]int)
-		throughput["sadd"] = new (benchmark.ThroughputResult)
+		throughput["sadd"] = new(benchmark.ThroughputResult)
 
 		latencies["srem"] = make(map[int]int)
-		throughput["srem"] = new (benchmark.ThroughputResult)
+		throughput["srem"] = new(benchmark.ThroughputResult)
 
 		latencies["smembers"] = make(map[int]int)
-		throughput["smembers"] = new (benchmark.ThroughputResult)
+		throughput["smembers"] = new(benchmark.ThroughputResult)
 
 		latencies["del"] = make(map[int]int)
-		throughput["del"] = new (benchmark.ThroughputResult)
+		throughput["del"] = new(benchmark.ThroughputResult)
 		break
 	case "del":
 		runner = benchmark.NewDelBenchmark(testConfig)
+		latencies[testName] = make(map[int]int)
+		throughput[testName] = new(benchmark.ThroughputResult)
+
 		// Because del also does sadds
 		latencies["sadd"] = make(map[int]int)
-		throughput["sadd"] = new (benchmark.ThroughputResult)
+		throughput["sadd"] = new(benchmark.ThroughputResult)
 		break
 	case "pubsub":
 		runner = benchmark.NewPubSubBenchmark(testConfig)
+		latencies[testName] = make(map[int]int)
+		throughput[testName] = new(benchmark.ThroughputResult)
 		break
 	default:
 		panic(fmt.Sprintf("unknown test: %s", testName))
@@ -266,9 +277,7 @@ func (bm *Benchmark) produceWork() {
 }
 
 func (bm *Benchmark) printSummary() {
-
 	for operation, lateMap := range bm.latencies {
-		throughputResult := bm.throughput[operation]
 		fmt.Println()
 		fmt.Printf("Latencies for: %s\n", operation)
 		fmt.Println("============================")
@@ -288,9 +297,10 @@ func (bm *Benchmark) printSummary() {
 			remainingSummed -= lateMap[k]
 		}
 		fmt.Println()
+	}
+	for operation, throughputResult := range bm.throughput {
 		throughput := float64(throughputResult.OperationCount) / float64(throughputResult.ElapsedTime/1000)
 		fmt.Printf("Throughput for %s: %0.2f ops/sec\n", operation, throughput)
-		fmt.Println()
 	}
 
 	fmt.Println()

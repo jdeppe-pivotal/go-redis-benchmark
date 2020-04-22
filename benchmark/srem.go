@@ -48,9 +48,14 @@ func (srem *SremBenchmark) ResultsPerOperation() int32 {
 func (srem *SremBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult) {
 	key := fmt.Sprintf("mykey-%d", srem.randInt.Intn(srem.config.Variant1))
 	value := fmt.Sprintf("myValue-%d", srem.randInt.Intn(srem.config.Variant2))
+	var err error
 
 	executionStartTime := time.Now()
-	err := client.SRem(key, value).Err()
+	if srem.config.Bulk {
+		err = client.SRem(key, srem.members).Err()
+	} else {
+		err = client.SRem(key, value).Err()
+	}
 	if err != nil && !srem.config.IgnoreErrors {
 		panic(err)
 	}
@@ -61,7 +66,11 @@ func (srem *SremBenchmark) DoOneOperation(client *redis.Client, results chan *Op
 	}
 
 	saddStart := time.Now()
-	err = client.SAdd(key, value).Err()
+	if srem.config.Bulk {
+		err = client.SAdd(key, srem.members).Err()
+	} else {
+		err = client.SAdd(key, value).Err()
+	}
 	if err != nil && !srem.config.IgnoreErrors {
 		panic(err)
 	}

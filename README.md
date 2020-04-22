@@ -7,30 +7,36 @@ This tool is intended to be similar to `redis-benchmark` with a few additional c
 ### Usage
 
     Usage of ./rbm:
-     -c int
-           number of clients to use (default 50)
-     -churn
-           delete entries immediately after creation
-     -h string
-           comma-separated host:port list (default "localhost:6379")
-     -help
-           help
-     -i int
-           iterations of the test to run - divided among clients (default 100000)
-     -ignore-errors
-           ignore errors from Redis calls
-     -t string
-           benchmark to run: sadd, smembers, del, pubsub (default "sadd")
-     -x int
-           variant 1 - test dependent.
-             sadd: the range of sets to use
-             smembers: the range of sets to use
-             del: the range of sets to use
-             pubsub: the number of subscribers and -c should be used for publishers (default 1)
-     -y int
-           variant 2 - test dependent.
-             smembers: the number of elements to add to each set
-             del: the number of entries to create in a set before deleting it (default 1)
+      -c int
+            number of clients to use (default 50)
+      -churn
+            delete entries immediately after creation by sadd benchmark
+      -disable-flush
+            disable flush after each benchmark runs
+      -h string
+            comma-separated host:port list (default "localhost:6379")
+      -help
+            help
+      -i int
+            iterations of the test to run - divided among clients (default 100000)
+      -ignore-errors
+            ignore errors from Redis calls
+      -t string
+            benchmark to run: sadd, smembers, srem, del, pubsub, setOperations (default "sadd")
+      -x int
+            variant 1 - test dependent.
+              sadd: the range of sets to use
+              srem: the range of sets to use
+              smembers: the range of sets to use
+              del: the range of sets to use
+              pubsub: the number of subscribers and -c should be used for publishers (default 1)
+      -y int
+            variant 2 - test dependent.
+              sadd: the range of random member names to add
+              srem: the number of elements to add to each set
+              smembers: the number of elements to add to each set
+              del: the number of entries to create in a set before deleting it (default 1)
+
             
 ### Commands supported
 
@@ -44,6 +50,14 @@ This tool is intended to be similar to `redis-benchmark` with a few additional c
 #### `smembers` benchmark test
 
 `smembers` pre-populates sets with members and then calls smembers on a random set for each iteration:
+
+- `-x int` Randomized value to select a given set to use for each operation
+- `-y int` Number of values to create in each set
+
+#### `srem` benchmark test
+
+`srem` pre-populates sets with members, calls srem on one member of a random set, and then adds the 
+removed member back to the set using `sadd` for each iteration:
 
 - `-x int` Randomized value to select a given set to use for each operation
 - `-y int` Number of values to create in each set

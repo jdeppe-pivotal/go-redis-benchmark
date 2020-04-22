@@ -14,6 +14,7 @@ type TestConfig struct {
 	DisableFlush bool
 	IgnoreErrors bool
 	Churn        bool
+	Bulk         bool
 	Results      chan *OperationResult
 }
 
@@ -24,7 +25,7 @@ type OperationResult struct {
 
 type ThroughputResult struct {
 	OperationCount int
-	ElapsedTime int64
+	ElapsedTime    int64
 }
 
 type Runner interface {

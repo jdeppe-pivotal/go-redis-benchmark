@@ -56,6 +56,7 @@ func processOptions() (string, *benchmark.TestConfig) {
 	var variant1 int
 	var variant2 int
 	var testName string
+	var disableFlush bool
 	var help bool
 	var ignoreErrors bool
 	var churn bool
@@ -65,14 +66,17 @@ func processOptions() (string, *benchmark.TestConfig) {
 	flag.IntVar(&clientCount, "c", CLIENT_COUNT, "number of clients to use")
 	flag.IntVar(&variant1, "x", 1, `variant 1 - test dependent.
   sadd: the range of sets to use
+  srem: the range of sets to use
   smembers: the range of sets to use
   del: the range of sets to use
   pubsub: the number of subscribers and -c should be used for publishers`)
 	flag.IntVar(&variant2, "y", 1, `variant 2 - test dependent.
   sadd: the range of random member names to add
+  srem: the number of elements to add to each set
   smembers: the number of elements to add to each set
   del: the number of entries to create in a set before deleting it`)
-	flag.StringVar(&testName, "t", "srem", "benchmark to run: sadd, smembers, srem, del, pubsub")
+	flag.StringVar(&testName, "t", "sadd", "benchmark to run: sadd, smembers, srem, del, pubsub")
+	flag.BoolVar(&disableFlush, "disable-flush", false, "disable flush after each benchmark runs")
 	flag.BoolVar(&help, "help", false, "help")
 	flag.BoolVar(&ignoreErrors, "ignore-errors", false, "ignore errors from Redis calls")
 	flag.BoolVar(&churn, "churn", false, "delete entries immediately after creation")
@@ -92,6 +96,7 @@ func processOptions() (string, *benchmark.TestConfig) {
 		Iterations:   iterations,
 		Variant1:     variant1,
 		Variant2:     variant2,
+		DisableFlush: disableFlush,
 		IgnoreErrors: ignoreErrors,
 		Churn:        churn,
 		Results:      make(chan *benchmark.OperationResult),
@@ -122,7 +127,20 @@ func (bm *Benchmark) launch() {
 
 	// Do cleanup
 	bm.tickQuitter <- true
+
 	bm.runners[bm.testName].Cleanup()
+	bm.flushAll()
+}
+
+func (bm *Benchmark) flushAll() {
+	if !bm.testConfig.DisableFlush {
+		fmt.Printf("Flushing all!")
+		client := redis.NewClient(&redis.Options{
+			Addr: bm.testConfig.HostPort[0],
+		})
+		client.FlushAll()
+		client.Close()
+	}
 }
 
 func NewBenchmark(testName string, testConfig *benchmark.TestConfig) *Benchmark {

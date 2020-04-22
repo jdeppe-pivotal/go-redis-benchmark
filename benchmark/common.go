@@ -11,6 +11,7 @@ type TestConfig struct {
 	Iterations   int
 	Variant1     int
 	Variant2     int
+	DisableFlush bool
 	IgnoreErrors bool
 	Churn        bool
 	Results      chan *OperationResult

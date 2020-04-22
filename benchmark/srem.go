@@ -35,10 +35,11 @@ func (srem *SremBenchmark) Setup() {
 	for i := 0; i < srem.config.Variant1; i++ {
 		client.SAdd(fmt.Sprintf("mykey-%d",i), srem.members)
 	}
+
+	client.Close()
 }
 
-func (srem *SremBenchmark) Cleanup() {
-}
+func (srem *SremBenchmark) Cleanup() {}
 
 func (srem *SremBenchmark) ResultsPerOperation() int32 {
 	return 2

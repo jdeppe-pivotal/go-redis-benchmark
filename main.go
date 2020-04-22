@@ -233,7 +233,14 @@ func (bm *Benchmark) produceWork() {
 	close(bm.workChannel)
 }
 
+// map[100]
+//    [99.9]
+//    [99.8]
+//    [99.0]
+//    [98.0]
 func (bm *Benchmark) printSummary() {
+
+	histogramList := []float64 {100, 99.9, 99.8, 99.7, 99.6, 99.5, 99.4, 99.3, 99.2, 99.1, 99, 98, 97, 96, 95}
 
 	for operation, lateMap := range bm.latencies {
 		throughputResult := bm.throughput[operation]
@@ -241,18 +248,56 @@ func (bm *Benchmark) printSummary() {
 		fmt.Printf("Latencies for: %s\n", operation)
 		fmt.Println("============================")
 		var keys []int
-		summedValues := 0
-		for k, v := range lateMap {
+		for k, _ := range lateMap {
 			keys = append(keys, k)
-			summedValues += v
 		}
 
 		sort.Sort(sort.Reverse(sort.IntSlice(keys)))
 
-		remainingSummed := summedValues
+		remainingSummed := throughputResult.OperationCount
+		rangeIndex := 1
+		nextIndex := 2
+		latency := keys[0]
+		opsForPercentage := throughputResult.OperationCount
 		for _, k := range keys {
-			percent := (float64(remainingSummed) / float64(summedValues)) * 100
-			fmt.Printf("%8.3f%% <= %4d ms  (%d/%d)\n", percent, k, remainingSummed, summedValues)
+			percent := (float64(remainingSummed) / float64(throughputResult.OperationCount)) * 100
+			if percent <= histogramList[rangeIndex] {
+				if percent >= histogramList[nextIndex] {
+					fmt.Printf("%8.3f%% <= %4d ms  (%d/%d)\n", histogramList[rangeIndex-1], latency, opsForPercentage, throughputResult.OperationCount)
+					latency = k
+					opsForPercentage = remainingSummed
+				} else {
+					fmt.Printf("%8.3f%% <= \n", histogramList[rangeIndex-1])
+				}
+				rangeIndex++
+				if nextIndex < len(histogramList) {
+					nextIndex++
+				}
+			}
+			remainingSummed -= lateMap[k]
+		}
+		fmt.Println()
+		throughput := float64(throughputResult.OperationCount) / float64(throughputResult.ElapsedTime/1000)
+		fmt.Printf("Throughput for %s: %0.2f ops/sec\n", operation, throughput)
+		fmt.Println()
+	}
+
+	for operation, lateMap := range bm.latencies {
+		throughputResult := bm.throughput[operation]
+		fmt.Println()
+		fmt.Printf("Latencies for: %s\n", operation)
+		fmt.Println("============================")
+		var keys []int
+		for k, _ := range lateMap {
+			keys = append(keys, k)
+		}
+
+		sort.Sort(sort.Reverse(sort.IntSlice(keys)))
+
+		remainingSummed := throughputResult.OperationCount
+		for _, k := range keys {
+			percent := (float64(remainingSummed) / float64(throughputResult.OperationCount)) * 100
+			fmt.Printf("%8.3f%% <= %4d ms  (%d/%d)\n", percent, k, remainingSummed, throughputResult.OperationCount)
 			remainingSummed -= lateMap[k]
 		}
 		fmt.Println()

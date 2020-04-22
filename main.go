@@ -72,7 +72,7 @@ func processOptions() (string, *benchmark.TestConfig) {
   sadd: the range of random member names to add
   smembers: the number of elements to add to each set
   del: the number of entries to create in a set before deleting it`)
-	flag.StringVar(&testName, "t", "sadd", "benchmark to run: sadd, smembers, del, pubsub")
+	flag.StringVar(&testName, "t", "srem", "benchmark to run: sadd, smembers, srem, del, pubsub")
 	flag.BoolVar(&help, "help", false, "help")
 	flag.BoolVar(&ignoreErrors, "ignore-errors", false, "ignore errors from Redis calls")
 	flag.BoolVar(&churn, "churn", false, "delete entries immediately after creation")
@@ -133,7 +133,7 @@ func NewBenchmark(testName string, testConfig *benchmark.TestConfig) *Benchmark 
 	latencies[testName] = make(map[int]int)
 	throughput[testName] = &benchmark.ThroughputResult{
 		OperationCount: 0,
-		ElapsedTime: 0,
+		ElapsedTime:    0,
 	}
 
 	switch testName {
@@ -143,14 +143,17 @@ func NewBenchmark(testName string, testConfig *benchmark.TestConfig) *Benchmark 
 	case "smembers":
 		runner = benchmark.NewSmembersBenchmark(testConfig)
 		break
+	case "srem":
+		runner = benchmark.NewSremBenchmark(testConfig)
+		// Because srem also does sadds
+		latencies["sadd"] = make(map[int]int)
+		throughput["sadd"] = new (benchmark.ThroughputResult)
+		break
 	case "del":
 		runner = benchmark.NewDelBenchmark(testConfig)
 		// Because del also does sadds
 		latencies["sadd"] = make(map[int]int)
-		throughput["sadd"] = &benchmark.ThroughputResult{
-			OperationCount: 0,
-			ElapsedTime: 0,
-		}
+		throughput["sadd"] = new (benchmark.ThroughputResult)
 		break
 	case "pubsub":
 		runner = benchmark.NewPubSubBenchmark(testConfig)
@@ -170,6 +173,7 @@ func NewBenchmark(testName string, testConfig *benchmark.TestConfig) *Benchmark 
 		runners:             runners,
 		workChannel:         make(chan *WorkUnit, testConfig.ClientCount*2),
 		latencies:           latencies,
+		throughput:          throughput,
 		resultCount:         new(int),
 		expectedResultCount: new(int32),
 		tickQuitter:         make(chan bool),
@@ -197,8 +201,7 @@ func (bm *Benchmark) processResults(wg *sync.WaitGroup) {
 		lateMap[int(r.Latency.Milliseconds())+1]++
 		throughputResult = bm.throughput[r.Operation]
 		throughputResult.OperationCount++
-		throughputResult.ElapsedTime += r.Latency.Nanoseconds()
-
+		throughputResult.ElapsedTime += r.Latency.Milliseconds()
 
 		*bm.resultCount++
 		if *bm.resultCount == int(atomic.LoadInt32(bm.expectedResultCount)) {
@@ -233,6 +236,7 @@ func (bm *Benchmark) produceWork() {
 func (bm *Benchmark) printSummary() {
 
 	for operation, lateMap := range bm.latencies {
+		throughputResult := bm.throughput[operation]
 		fmt.Println()
 		fmt.Printf("Latencies for: %s\n", operation)
 		fmt.Println("============================")
@@ -251,16 +255,17 @@ func (bm *Benchmark) printSummary() {
 			fmt.Printf("%8.3f%% <= %4d ms  (%d/%d)\n", percent, k, remainingSummed, summedValues)
 			remainingSummed -= lateMap[k]
 		}
+		fmt.Println()
+		throughput := float64(throughputResult.OperationCount) / float64(throughputResult.ElapsedTime/1000)
+		fmt.Printf("Throughput for %s: %0.2f ops/sec\n", operation, throughput)
+		fmt.Println()
 	}
-
-	throughput := float64(bm.testConfig.Iterations) / bm.endTime.Sub(bm.startTime).Seconds()
 
 	fmt.Println()
 	fmt.Printf("Clients:    %d\n", bm.testConfig.ClientCount)
 	fmt.Printf("Operations: %d\n", *bm.resultCount)
 	fmt.Printf("Variant1:   %d\n", bm.testConfig.Variant1)
 	fmt.Printf("Variant2:   %d\n", bm.testConfig.Variant2)
-	fmt.Printf("Throughput: %0.2f ops/sec\n", throughput)
 	fmt.Println()
 }
 

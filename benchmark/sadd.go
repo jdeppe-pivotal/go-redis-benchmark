@@ -23,9 +23,11 @@ func NewSaddBenchmark(config *TestConfig) Runner {
 }
 
 func (sadd *SaddBenchmark) Setup() {
-	sadd.members = make([]string, sadd.config.Variant2)
-	for j := 0; j < sadd.config.Variant2; j++ {
-		sadd.members[j] = CreateValue(j)
+	if sadd.config.Bulk {
+		sadd.members = make([]string, sadd.config.Variant2)
+		for j := 0; j < sadd.config.Variant2; j++ {
+			sadd.members[j] = CreateValue(j)
+		}
 	}
 }
 

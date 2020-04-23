@@ -76,7 +76,7 @@ func processOptions() (string, *benchmark.TestConfig) {
   srem: the number of elements to add to each set
   smembers: the number of elements to add to each set
   del: the number of entries to create in a set before deleting it`)
-	flag.StringVar(&testName, "t", "setOperations", "benchmark to run: sadd, smembers, srem, del, pubsub, setOperations")
+	flag.StringVar(&testName, "t", "sadd", "benchmark to run: sadd, smembers, srem, del, pubsub, setOperations")
 	flag.BoolVar(&flush, "flush", true, "flush after each benchmark runs")
 	flag.BoolVar(&help, "help", false, "help")
 	flag.BoolVar(&ignoreErrors, "ignore-errors", false, "ignore errors from Redis calls")
@@ -244,7 +244,7 @@ func (bm *Benchmark) processResults(wg *sync.WaitGroup) {
 		lateMap[int(r.Latency.Milliseconds())+1]++
 		throughputResult = bm.throughput[r.Operation]
 		throughputResult.OperationCount++
-		throughputResult.ElapsedTime += uint64(r.Latency.Milliseconds())
+		throughputResult.ElapsedTime += uint64(r.Latency.Nanoseconds())
 
 		*bm.resultCount++
 		if *bm.resultCount == int(atomic.LoadInt32(bm.expectedResultCount)) {
@@ -299,8 +299,10 @@ func (bm *Benchmark) printSummary() {
 		fmt.Println()
 	}
 	for operation, throughputResult := range bm.throughput {
-		throughputSec := float64(throughputResult.OperationCount) / float64(throughputResult.ElapsedTime)
-		throughputSec = throughputSec * 1000
+		elapsedTimeSeconds := float64(throughputResult.ElapsedTime) / 1e9 / float64(bm.testConfig.ClientCount)
+		fmt.Printf("Elapsed time: %0.3f seconds\n", elapsedTimeSeconds)
+		fmt.Printf("Operations: %d\n", throughputResult.OperationCount)
+		throughputSec := float64(throughputResult.OperationCount) / elapsedTimeSeconds
 
 		fmt.Printf("Throughput for %s: %0.2f ops/sec\n", operation, throughputSec)
 	}

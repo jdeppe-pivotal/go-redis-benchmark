@@ -1,7 +1,6 @@
 package benchmark
 
 import (
-	"fmt"
 	"github.com/go-redis/redis/v7"
 	"math/rand"
 	"time"
@@ -28,10 +27,10 @@ func (smembers *SmembersBenchmark) Setup() {
 	})
 
 	for i := 0; i < smembers.config.Variant1; i++ {
-		key := fmt.Sprintf("mykey-%05d", i)
+		key := CreateKey(i)
 		client.Del(key)
 		for j := 0; j < smembers.config.Variant2; j++ {
-			member := fmt.Sprintf("value-%010d", j)
+			member := CreateValue(j)
 			err := client.SAdd(key, member).Err()
 			if err != nil && !smembers.config.IgnoreErrors {
 				panic(err)
@@ -50,7 +49,7 @@ func (smembers *SmembersBenchmark) ResultsPerOperation() int32 {
 func (smembers *SmembersBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult) {
 	executionStartTime := time.Now()
 
-	key := fmt.Sprintf("mykey-%05d", smembers.randInt.Intn(smembers.config.Variant1))
+	key := CreateKey(smembers.randInt.Intn(smembers.config.Variant1))
 
 	err := client.SMembers(key).Err()
 	if err != nil && !smembers.config.IgnoreErrors {

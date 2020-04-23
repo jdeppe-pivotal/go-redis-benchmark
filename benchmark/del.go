@@ -1,7 +1,6 @@
 package benchmark
 
 import (
-	"fmt"
 	"github.com/go-redis/redis/v7"
 	"math/rand"
 	"time"
@@ -26,7 +25,7 @@ func NewDelBenchmark(config *TestConfig) Runner {
 func (del *DelBenchmark) Setup() {
 	del.members = make([]string, del.config.Variant2)
 	for j := 0; j < del.config.Variant2; j++ {
-		del.members[j] = fmt.Sprintf("myValue-%010d",j)
+		del.members[j] = CreateValue(j)
 	}
 }
 
@@ -38,7 +37,7 @@ func (del *DelBenchmark) ResultsPerOperation() int32 {
 }
 
 func (del *DelBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult) {
-	key := fmt.Sprintf("mykey-%05d", del.randInt.Intn(del.config.Variant1))
+	key := CreateKey(del.randInt.Intn(del.config.Variant1))
 
 	saddStart := time.Now()
 	err := client.SAdd(key, del.members).Err()

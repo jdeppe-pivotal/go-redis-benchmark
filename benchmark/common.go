@@ -1,6 +1,7 @@
 package benchmark
 
 import (
+	"fmt"
 	"github.com/go-redis/redis/v7"
 	"time"
 )
@@ -33,4 +34,12 @@ type Runner interface {
 	DoOneOperation(client *redis.Client, results chan *OperationResult)
 	Cleanup()
 	ResultsPerOperation() int32
+}
+
+func CreateKey(i int) string {
+	return fmt.Sprintf("myKey-%05d", i)
+}
+
+func CreateValue(i int) string {
+	return fmt.Sprintf("myValue-%010d", i)
 }

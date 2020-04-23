@@ -56,7 +56,7 @@ func processOptions() (string, *benchmark.TestConfig) {
 	var variant1 int
 	var variant2 int
 	var testName string
-	var disableFlush bool
+	var flush bool
 	var help bool
 	var ignoreErrors bool
 	var churn bool
@@ -77,7 +77,7 @@ func processOptions() (string, *benchmark.TestConfig) {
   smembers: the number of elements to add to each set
   del: the number of entries to create in a set before deleting it`)
 	flag.StringVar(&testName, "t", "setOperations", "benchmark to run: sadd, smembers, srem, del, pubsub, setOperations")
-	flag.BoolVar(&disableFlush, "disable-flush", false, "disable flush after each benchmark runs")
+	flag.BoolVar(&flush, "flush", true, "flush after each benchmark runs")
 	flag.BoolVar(&help, "help", false, "help")
 	flag.BoolVar(&ignoreErrors, "ignore-errors", false, "ignore errors from Redis calls")
 	flag.BoolVar(&bulk, "bulk", false, "sadd and srem will be given multiple members to add/remove based on -y option")
@@ -98,7 +98,7 @@ func processOptions() (string, *benchmark.TestConfig) {
 		Iterations:   iterations,
 		Variant1:     variant1,
 		Variant2:     variant2,
-		DisableFlush: disableFlush,
+		Flush:        flush,
 		IgnoreErrors: ignoreErrors,
 		Churn:        churn,
 		Bulk:         bulk,
@@ -136,7 +136,7 @@ func (bm *Benchmark) launch() {
 }
 
 func (bm *Benchmark) flushAll() {
-	if !bm.testConfig.DisableFlush {
+	if bm.testConfig.Flush {
 		fmt.Printf("Flushing all!")
 		client := redis.NewClient(&redis.Options{
 			Addr: bm.testConfig.HostPort[0],

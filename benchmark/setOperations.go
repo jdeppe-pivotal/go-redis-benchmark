@@ -29,11 +29,11 @@ func (setOperations *SetOperationsBenchmark) Setup() {
 	})
 	setOperations.members = make([]string, setOperations.config.Variant2)
 	for j := 0; j < setOperations.config.Variant2; j++ {
-		setOperations.members[j] = fmt.Sprintf("myValue-%d", j)
+		setOperations.members[j] = fmt.Sprintf("myValue-%010d", j)
 	}
 
 	for i := 0; i < setOperations.config.Variant1; i++ {
-		client.SAdd(fmt.Sprintf("mykey-%d", i), setOperations.members)
+		client.SAdd(fmt.Sprintf("mykey-%05d", i), setOperations.members)
 	}
 
 	client.Close()
@@ -47,8 +47,8 @@ func (setOperations *SetOperationsBenchmark) ResultsPerOperation() int32 {
 
 func (setOperations *SetOperationsBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult) {
 	operationIndex := setOperations.randInt.Intn(4)
-	key := fmt.Sprintf("mykey-%d", setOperations.randInt.Intn(setOperations.config.Variant1))
-	value := fmt.Sprintf("myValue-%d", setOperations.randInt.Intn(setOperations.config.Variant2))
+	key := fmt.Sprintf("mykey-%05d", setOperations.randInt.Intn(setOperations.config.Variant1))
+	value := fmt.Sprintf("myValue-%010d", setOperations.randInt.Intn(setOperations.config.Variant2))
 
 	var err error
 

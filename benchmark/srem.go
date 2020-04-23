@@ -29,11 +29,11 @@ func (srem *SremBenchmark) Setup() {
 	})
 	srem.members = make([]string, srem.config.Variant2)
 	for j := 0; j < srem.config.Variant2; j++ {
-		srem.members[j] = fmt.Sprintf("myValue-%d",j)
+		srem.members[j] = fmt.Sprintf("myValue-%010d",j)
 	}
 
 	for i := 0; i < srem.config.Variant1; i++ {
-		client.SAdd(fmt.Sprintf("mykey-%d",i), srem.members)
+		client.SAdd(fmt.Sprintf("mykey-%05d",i), srem.members)
 	}
 
 	client.Close()
@@ -46,8 +46,8 @@ func (srem *SremBenchmark) ResultsPerOperation() int32 {
 }
 
 func (srem *SremBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult) {
-	key := fmt.Sprintf("mykey-%d", srem.randInt.Intn(srem.config.Variant1))
-	value := fmt.Sprintf("myValue-%d", srem.randInt.Intn(srem.config.Variant2))
+	key := fmt.Sprintf("mykey-%05d", srem.randInt.Intn(srem.config.Variant1))
+	value := fmt.Sprintf("myValue-%010d", srem.randInt.Intn(srem.config.Variant2))
 	var err error
 
 	executionStartTime := time.Now()

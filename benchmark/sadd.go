@@ -26,7 +26,7 @@ func NewSaddBenchmark(config *TestConfig) Runner {
 func (sadd *SaddBenchmark) Setup() {
 	sadd.members = make([]string, sadd.config.Variant2)
 	for j := 0; j < sadd.config.Variant2; j++ {
-		sadd.members[j] = fmt.Sprintf("myValue-%d", j)
+		sadd.members[j] = fmt.Sprintf("myValue-%010d", j)
 	}
 }
 
@@ -38,8 +38,8 @@ func (sadd *SaddBenchmark) ResultsPerOperation() int32 {
 }
 
 func (sadd *SaddBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult) {
-	key := fmt.Sprintf("mykey-%d", sadd.randInt.Intn(sadd.config.Variant1))
-	member := fmt.Sprintf("value-%d", rand.Intn(sadd.config.Variant2))
+	key := fmt.Sprintf("mykey-%05d", sadd.randInt.Intn(sadd.config.Variant1))
+	member := fmt.Sprintf("value-%010d", rand.Intn(sadd.config.Variant2))
 	var err error
 
 	executionStartTime := time.Now()

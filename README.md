@@ -5,39 +5,40 @@ This tool is intended to be similar to `redis-benchmark` with a few additional c
 * Able to specify multiple hosts in order for client connections to be round-robined
 
 ### Usage
-
     Usage of ./rbm:
-      -c int
-            number of clients to use (default 50)
-      -churn
-            delete entries immediately after creation by sadd benchmark
-      -disable-flush
-            disable flush after each benchmark runs
-      -h string
-            comma-separated host:port list (default "localhost:6379")
-      -help
-            help
-      -i int
-            iterations of the test to run - divided among clients (default 100000)
-      -ignore-errors
-            ignore errors from Redis calls
-      -t string
-            benchmark to run: sadd, smembers, srem, del, pubsub, setOperations (default "sadd")
-      -x int
-            variant 1 - test dependent.
-              sadd: the range of sets to use
-              srem: the range of sets to use
-              smembers: the range of sets to use
-              del: the range of sets to use
-              pubsub: the number of subscribers and -c should be used for publishers (default 1)
-      -y int
-            variant 2 - test dependent.
-              sadd: the range of random member names to add
-              srem: the number of elements to add to each set
-              smembers: the number of elements to add to each set
-              del: the number of entries to create in a set before deleting it (default 1)
+       -bulk
+             sadd and srem will be given multiple members to add/remove based on -y option
+       -c int
+             number of clients to use (default 50)
+       -churn
+             delete entries immediately after creation by sadd benchmark
+       -disable-flush
+             disable flush after each benchmark runs
+       -h string
+             comma-separated host:port list (default "localhost:6379")
+       -help
+             help
+       -i int
+             iterations of the test to run - divided among clients (default 100000)
+       -ignore-errors
+             ignore errors from Redis calls
+       -t string
+             benchmark to run: sadd, smembers, srem, del, pubsub, setOperations (default "sadd")
+       -x int
+             variant 1 - test dependent.
+               sadd: the range of sets to use
+               srem: the range of sets to use
+               smembers: the range of sets to use
+               del: the range of sets to use
+               pubsub: the number of subscribers and -c should be used for publishers (default 1)
+       -y int
+             variant 2 - test dependent.
+               sadd: the range of random member names to add
+               srem: the number of elements to add to each set
+               smembers: the number of elements to add to each set
+               del: the number of entries to create in a set before deleting it (default 1)
 
-            
+
 ### Commands supported
 
 #### `sadd` benchmark test

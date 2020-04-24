@@ -76,7 +76,7 @@ func processOptions() (string, *benchmark.TestConfig) {
   srem: the number of elements to add to each set
   smembers: the number of elements to add to each set
   del: the number of entries to create in a set before deleting it`)
-	flag.StringVar(&testName, "t", "sadd", "benchmark to run: sadd, smembers, srem, del, pubsub, setOperations")
+	flag.StringVar(&testName, "t", "sadd", "benchmark to run: del, ping, pubsub, sadd, setOperations, smembers, srem")
 	flag.BoolVar(&flush, "flush", true, "flush after each benchmark runs")
 	flag.BoolVar(&help, "help", false, "help")
 	flag.BoolVar(&ignoreErrors, "ignore-errors", false, "ignore errors from Redis calls")
@@ -140,6 +140,7 @@ func (bm *Benchmark) flushAll() {
 		fmt.Printf("Flushing all!")
 		client := redis.NewClient(&redis.Options{
 			Addr: bm.testConfig.HostPort[0],
+			ReadTimeout: time.Duration(60 * time.Second),
 		})
 		err := client.FlushAll().Err()
 		if err != nil {
@@ -156,6 +157,12 @@ func NewBenchmark(testName string, testConfig *benchmark.TestConfig) *Benchmark 
 	throughput := make(map[string]*benchmark.ThroughputResult)
 
 	switch testName {
+	case "ping":
+		runner = benchmark.NewPingBenchmark(testConfig)
+		latencies[testName] = make(map[int]int)
+		throughput[testName] = new(benchmark.ThroughputResult)
+
+		break
 	case "sadd":
 		runner = benchmark.NewSaddBenchmark(testConfig)
 		latencies[testName] = make(map[int]int)

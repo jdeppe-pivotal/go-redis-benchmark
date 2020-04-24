@@ -141,7 +141,10 @@ func (bm *Benchmark) flushAll() {
 		client := redis.NewClient(&redis.Options{
 			Addr: bm.testConfig.HostPort[0],
 		})
-		client.FlushAll()
+		err := client.FlushAll().Err()
+		if err != nil {
+			panic(fmt.Sprintf("error calling FLUSHALL: %s", err.Error()))
+		}
 		client.Close()
 	}
 }

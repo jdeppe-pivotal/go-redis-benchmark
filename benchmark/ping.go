@@ -17,21 +17,21 @@ func NewPingBenchmark(config *TestConfig) Runner {
 	}
 }
 
-func (smembers *PingBenchmark) Setup() {
+func (ping *PingBenchmark) Setup() {
 }
 
-func (smembers *PingBenchmark) Cleanup() {
+func (ping *PingBenchmark) Cleanup() {
 }
 
-func (smembers *PingBenchmark) ResultsPerOperation() int32 {
+func (ping *PingBenchmark) ResultsPerOperation() int32 {
 	return 1
 }
 
-func (smembers *PingBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult) {
+func (ping *PingBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult) {
 	executionStartTime := time.Now()
 
 	err := client.Ping().Err()
-	if err != nil && !smembers.config.IgnoreErrors {
+	if err != nil && !ping.config.IgnoreErrors {
 		panic(err)
 	}
 

@@ -11,7 +11,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -35,9 +34,10 @@ type Benchmark struct {
 	workChannel         chan *WorkUnit
 	latencies           map[string]map[int]int
 	throughput          map[string]*benchmark.ThroughputResult
-	resultCount         *int
+	resultCount         *int32
 	expectedResultCount *int32
 	tickQuitter         chan bool
+	workCompleted		bool
 }
 
 func main() {
@@ -102,12 +102,12 @@ func processOptions() (string, *benchmark.TestConfig) {
 		IgnoreErrors: ignoreErrors,
 		Churn:        churn,
 		Bulk:         bulk,
-		Results:      make(chan *benchmark.OperationResult),
+		Results:      make(chan *benchmark.OperationResult, clientCount*2),
 	}
 }
 
 func (bm *Benchmark) launch() {
-	go bm.throughputTicker(bm.resultCount, bm.tickQuitter)
+	go bm.throughputTicker(bm.tickQuitter)
 
 	// Process results
 	wg := &sync.WaitGroup{}
@@ -227,9 +227,10 @@ func NewBenchmark(testName string, testConfig *benchmark.TestConfig) *Benchmark 
 		workChannel:         make(chan *WorkUnit, testConfig.ClientCount*2),
 		latencies:           latencies,
 		throughput:          throughput,
-		resultCount:         new(int),
+		resultCount:         new(int32),
 		expectedResultCount: new(int32),
 		tickQuitter:         make(chan bool),
+		workCompleted:       false,
 	}
 
 	// set up signal handler for CTRL-C
@@ -257,7 +258,7 @@ func (bm *Benchmark) processResults(wg *sync.WaitGroup) {
 		throughputResult.ElapsedTime += uint64(r.Latency.Nanoseconds())
 
 		*bm.resultCount++
-		if *bm.resultCount == int(atomic.LoadInt32(bm.expectedResultCount)) {
+		if bm.workCompleted && *bm.resultCount == *bm.expectedResultCount {
 			break
 		}
 	}
@@ -279,10 +280,11 @@ func (bm *Benchmark) consumeWork(hostPort string, wg *sync.WaitGroup) {
 
 func (bm *Benchmark) produceWork() {
 	for i := 0; i < bm.testConfig.Iterations; i++ {
-		atomic.AddInt32(bm.expectedResultCount, bm.runners[bm.testName].ResultsPerOperation())
+		*bm.expectedResultCount += bm.runners[bm.testName].ResultsPerOperation()
 		bm.workChannel <- &WorkUnit{i, bm.testName}
 	}
 
+	bm.workCompleted = true
 	close(bm.workChannel)
 }
 
@@ -325,15 +327,15 @@ func (bm *Benchmark) printSummary() {
 	fmt.Println()
 }
 
-func (bm *Benchmark) throughputTicker(value *int, quitter chan bool) {
-	lastResultCount := 0
+func (bm *Benchmark) throughputTicker(quitter chan bool) {
+	var lastResultCount int32 = 0
 	ticker := time.NewTicker(1 * time.Second)
 
 	for {
 		select {
 		case <-ticker.C:
-			resultsNow := *value
-			log.Printf("-> %d ops/sec (in flight: %d)\n", resultsNow-lastResultCount, int(*bm.expectedResultCount)-*bm.resultCount)
+			resultsNow := *bm.resultCount
+			log.Printf("-> %d ops/sec (in flight: %d)\n", resultsNow-lastResultCount, *bm.expectedResultCount-*bm.resultCount)
 			lastResultCount = resultsNow
 		case <-quitter:
 			ticker.Stop()

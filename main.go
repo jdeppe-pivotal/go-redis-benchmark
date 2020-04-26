@@ -36,7 +36,6 @@ type Benchmark struct {
 	throughput          map[string]*benchmark.ThroughputResult
 	resultCount         *int32
 	expectedResultCount *int32
-	tickQuitter         chan bool
 	workCompleted		bool
 }
 
@@ -107,7 +106,6 @@ func processOptions() (string, *benchmark.TestConfig) {
 }
 
 func (bm *Benchmark) launch() {
-	go bm.throughputTicker(bm.tickQuitter)
 
 	// Process results
 	wg := &sync.WaitGroup{}
@@ -129,8 +127,6 @@ func (bm *Benchmark) launch() {
 	bm.endTime = time.Now()
 
 	// Do cleanup
-	bm.tickQuitter <- true
-
 	bm.runners[bm.testName].Cleanup()
 	bm.flushAll()
 }
@@ -229,7 +225,6 @@ func NewBenchmark(testName string, testConfig *benchmark.TestConfig) *Benchmark 
 		throughput:          throughput,
 		resultCount:         new(int32),
 		expectedResultCount: new(int32),
-		tickQuitter:         make(chan bool),
 		workCompleted:       false,
 	}
 
@@ -249,21 +244,30 @@ func NewBenchmark(testName string, testConfig *benchmark.TestConfig) *Benchmark 
 func (bm *Benchmark) processResults(wg *sync.WaitGroup) {
 	var lateMap map[int]int
 	var throughputResult *benchmark.ThroughputResult
+	var lastResultCount int32 = 0
+	ticker := time.NewTicker(1 * time.Second)
 
-	for r := range bm.testConfig.Results {
-		lateMap = bm.latencies[r.Operation]
-		lateMap[int(r.Latency.Milliseconds())+1]++
-		throughputResult = bm.throughput[r.Operation]
-		throughputResult.OperationCount++
-		throughputResult.ElapsedTime += uint64(r.Latency.Nanoseconds())
+	defer wg.Done()
 
-		*bm.resultCount++
-		if bm.workCompleted && *bm.resultCount == *bm.expectedResultCount {
-			break
+	for {
+		select {
+		case r := <-bm.testConfig.Results:
+			lateMap = bm.latencies[r.Operation]
+			lateMap[int(r.Latency.Milliseconds())+1]++
+			throughputResult = bm.throughput[r.Operation]
+			throughputResult.OperationCount++
+			throughputResult.ElapsedTime += uint64(r.Latency.Nanoseconds())
+
+			*bm.resultCount++
+			if bm.workCompleted && *bm.resultCount == *bm.expectedResultCount {
+				return
+			}
+		case <-ticker.C:
+			resultsNow := *bm.resultCount
+			log.Printf("-> %d ops/sec (in flight: %d)\n", resultsNow-lastResultCount, len(bm.workChannel))
+			lastResultCount = resultsNow
 		}
 	}
-
-	wg.Done()
 }
 
 func (bm *Benchmark) consumeWork(hostPort string, wg *sync.WaitGroup) {
@@ -325,21 +329,4 @@ func (bm *Benchmark) printSummary() {
 	fmt.Printf("Variant1:   %d\n", bm.testConfig.Variant1)
 	fmt.Printf("Variant2:   %d\n", bm.testConfig.Variant2)
 	fmt.Println()
-}
-
-func (bm *Benchmark) throughputTicker(quitter chan bool) {
-	var lastResultCount int32 = 0
-	ticker := time.NewTicker(1 * time.Second)
-
-	for {
-		select {
-		case <-ticker.C:
-			resultsNow := *bm.resultCount
-			log.Printf("-> %d ops/sec (in flight: %d)\n", resultsNow-lastResultCount, *bm.expectedResultCount-*bm.resultCount)
-			lastResultCount = resultsNow
-		case <-quitter:
-			ticker.Stop()
-			return
-		}
-	}
 }

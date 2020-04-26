@@ -15,7 +15,6 @@ type SremBenchmark struct {
 var _ Runner = (*SremBenchmark)(nil)
 
 func NewSremBenchmark(config *TestConfig) Runner {
-	randInt := rand.New(rand.NewSource(time.Now().UnixNano()))
 	return &SremBenchmark{
 		config: config,
 		randInt: randInt,
@@ -44,9 +43,7 @@ func (srem *SremBenchmark) ResultsPerOperation() int32 {
 	return 2
 }
 
-func (srem *SremBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult) {
-	key := CreateKey(srem.randInt.Intn(srem.config.Variant1))
-	value := CreateValue(srem.randInt.Intn(srem.config.Variant2))
+func (srem *SremBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult, key string, value string) {
 	var err error
 
 	executionStartTime := time.Now()

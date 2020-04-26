@@ -3,6 +3,7 @@ package benchmark
 import (
 	"fmt"
 	"github.com/go-redis/redis/v7"
+	"math/rand"
 	"time"
 )
 
@@ -31,10 +32,12 @@ type ThroughputResult struct {
 
 type Runner interface {
 	Setup()
-	DoOneOperation(client *redis.Client, results chan *OperationResult)
+	DoOneOperation(client *redis.Client, results chan *OperationResult, key string, value string)
 	Cleanup()
 	ResultsPerOperation() int32
 }
+
+var randInt = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 func CreateKey(i int) string {
 	return fmt.Sprintf("myKey-%05d", i)

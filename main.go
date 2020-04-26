@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/go-redis/redis/v7"
 	"log"
+	"math/rand"
 	"os"
 	"os/signal"
 	"rbm/benchmark"
@@ -21,8 +22,8 @@ const (
 )
 
 type WorkUnit struct {
-	id        int
-	operation string
+	id          int
+	operation   string
 }
 
 type Benchmark struct {
@@ -135,7 +136,7 @@ func (bm *Benchmark) flushAll() {
 	if bm.testConfig.Flush {
 		fmt.Printf("Flushing all!")
 		client := redis.NewClient(&redis.Options{
-			Addr: bm.testConfig.HostPort[0],
+			Addr:        bm.testConfig.HostPort[0],
 			ReadTimeout: time.Duration(60 * time.Second),
 		})
 		err := client.FlushAll().Err()
@@ -220,7 +221,7 @@ func NewBenchmark(testName string, testConfig *benchmark.TestConfig) *Benchmark 
 		testName:            testName,
 		testConfig:          testConfig,
 		runners:             runners,
-		workChannel:         make(chan *WorkUnit, testConfig.ClientCount*2),
+		workChannel:         make(chan *WorkUnit, testConfig.ClientCount),
 		latencies:           latencies,
 		throughput:          throughput,
 		resultCount:         new(int32),
@@ -264,28 +265,37 @@ func (bm *Benchmark) processResults(wg *sync.WaitGroup) {
 			}
 		case <-ticker.C:
 			resultsNow := *bm.resultCount
-			log.Printf("-> %d ops/sec (in flight: %d)\n", resultsNow-lastResultCount, len(bm.workChannel))
+			log.Printf("-> %d ops/sec (queued: %d)\n", resultsNow-lastResultCount, len(bm.workChannel))
 			lastResultCount = resultsNow
 		}
 	}
 }
 
 func (bm *Benchmark) consumeWork(hostPort string, wg *sync.WaitGroup) {
+	var randInt = rand.New(rand.NewSource(time.Now().UnixNano()))
 	client := redis.NewClient(&redis.Options{
 		Addr: hostPort,
 	})
 
+	randomKey := benchmark.CreateKey(randInt.Intn(bm.testConfig.Variant1))
+	randomValue := benchmark.CreateValue(randInt.Intn(bm.testConfig.Variant2))
+
 	for work := range bm.workChannel {
-		bm.runners[work.operation].DoOneOperation(client, bm.testConfig.Results)
+		bm.runners[work.operation].DoOneOperation(client, bm.testConfig.Results, randomKey, randomValue)
 	}
 
 	wg.Done()
 }
 
 func (bm *Benchmark) produceWork() {
+
 	for i := 0; i < bm.testConfig.Iterations; i++ {
 		*bm.expectedResultCount += bm.runners[bm.testName].ResultsPerOperation()
-		bm.workChannel <- &WorkUnit{i, bm.testName}
+
+		bm.workChannel <- &WorkUnit{
+			id: i,
+			operation: bm.testName,
+		}
 	}
 
 	bm.workCompleted = true

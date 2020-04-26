@@ -27,7 +27,7 @@ func (ping *PingBenchmark) ResultsPerOperation() int32 {
 	return 1
 }
 
-func (ping *PingBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult) {
+func (ping *PingBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult, key string, value string) {
 	executionStartTime := time.Now()
 
 	err := client.Ping().Err()

@@ -44,10 +44,8 @@ func (setOperations *SetOperationsBenchmark) ResultsPerOperation() int32 {
 	return 1
 }
 
-func (setOperations *SetOperationsBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult) {
+func (setOperations *SetOperationsBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult, key string, value string) {
 	operationIndex := setOperations.randInt.Intn(4)
-	key := CreateKey(setOperations.randInt.Intn(setOperations.config.Variant1))
-	value := CreateValue(setOperations.randInt.Intn(setOperations.config.Variant2))
 
 	var err error
 

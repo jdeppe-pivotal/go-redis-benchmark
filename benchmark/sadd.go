@@ -38,9 +38,7 @@ func (sadd *SaddBenchmark) ResultsPerOperation() int32 {
 	return 1
 }
 
-func (sadd *SaddBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult) {
-	key := CreateKey(sadd.randInt.Intn(sadd.config.Variant1))
-	member := CreateValue(rand.Intn(sadd.config.Variant2))
+func (sadd *SaddBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult, key string, member string) {
 	var err error
 
 	executionStartTime := time.Now()

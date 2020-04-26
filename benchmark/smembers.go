@@ -46,10 +46,8 @@ func (smembers *SmembersBenchmark) ResultsPerOperation() int32 {
 	return 1
 }
 
-func (smembers *SmembersBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult) {
+func (smembers *SmembersBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult, key string, value string) {
 	executionStartTime := time.Now()
-
-	key := CreateKey(smembers.randInt.Intn(smembers.config.Variant1))
 
 	err := client.SMembers(key).Err()
 	if err != nil && !smembers.config.IgnoreErrors {

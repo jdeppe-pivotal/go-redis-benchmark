@@ -22,22 +22,21 @@ const (
 )
 
 type WorkUnit struct {
-	id          int
-	operation   string
+	id        int
+	operation string
 }
 
 type Benchmark struct {
 	testName            string
 	testConfig          *benchmark.TestConfig
-	startTime           time.Time
-	endTime             time.Time
 	runners             map[string]benchmark.Runner
 	workChannel         chan *WorkUnit
 	latencies           map[string]map[int]int
 	throughput          map[string]*benchmark.ThroughputResult
 	resultCount         *int32
 	expectedResultCount *int32
-	workCompleted		bool
+	workCompleted       bool
+	waitGroup           *sync.WaitGroup
 }
 
 func main() {
@@ -109,23 +108,18 @@ func processOptions() (string, *benchmark.TestConfig) {
 func (bm *Benchmark) launch() {
 
 	// Process results
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-	go bm.processResults(wg)
+	bm.waitGroup.Add(1)
+	go bm.processResults()
 
 	for i := 0; i < bm.testConfig.ClientCount; i++ {
 		host := bm.testConfig.HostPort[i%len(bm.testConfig.HostPort)]
-		wg.Add(1)
-		go bm.consumeWork(host, wg)
+		bm.waitGroup.Add(1)
+		go bm.consumeWork(host)
 	}
-
-	bm.startTime = time.Now()
 
 	go bm.produceWork()
 
-	wg.Wait()
-
-	bm.endTime = time.Now()
+	bm.waitGroup.Wait()
 
 	// Do cleanup
 	bm.runners[bm.testName].Cleanup()
@@ -227,6 +221,7 @@ func NewBenchmark(testName string, testConfig *benchmark.TestConfig) *Benchmark 
 		resultCount:         new(int32),
 		expectedResultCount: new(int32),
 		workCompleted:       false,
+		waitGroup:           &sync.WaitGroup{},
 	}
 
 	// set up signal handler for CTRL-C
@@ -234,21 +229,23 @@ func NewBenchmark(testName string, testConfig *benchmark.TestConfig) *Benchmark 
 	signal.Notify(signalChan, os.Interrupt)
 	go func() {
 		<-signalChan
-		bench.endTime = time.Now()
+
+		bench.waitGroup.Done()
 		bench.printSummary()
+
 		os.Exit(0)
 	}()
 
 	return bench
 }
 
-func (bm *Benchmark) processResults(wg *sync.WaitGroup) {
+func (bm *Benchmark) processResults() {
 	var lateMap map[int]int
 	var throughputResult *benchmark.ThroughputResult
-	var lastResultCount int32 = 0
+	var elapsedTime uint64 = 0
 	ticker := time.NewTicker(1 * time.Second)
 
-	defer wg.Done()
+	defer bm.waitGroup.Done()
 
 	for {
 		select {
@@ -258,33 +255,31 @@ func (bm *Benchmark) processResults(wg *sync.WaitGroup) {
 			throughputResult = bm.throughput[r.Operation]
 			throughputResult.OperationCount++
 			throughputResult.ElapsedTime += uint64(r.Latency.Nanoseconds())
+			elapsedTime += uint64(r.Latency.Nanoseconds())
 
 			*bm.resultCount++
 			if bm.workCompleted && *bm.resultCount == *bm.expectedResultCount {
 				return
 			}
 		case <-ticker.C:
-			resultsNow := *bm.resultCount
-			log.Printf("-> %d ops/sec (queued: %d)\n", resultsNow-lastResultCount, len(bm.workChannel))
-			lastResultCount = resultsNow
+			log.Printf("-> %0.2f ops/sec (queued: %d)\n", float64(*bm.resultCount)/(float64(elapsedTime)/1e9)*float64(bm.testConfig.ClientCount), len(bm.workChannel))
 		}
 	}
 }
 
-func (bm *Benchmark) consumeWork(hostPort string, wg *sync.WaitGroup) {
+func (bm *Benchmark) consumeWork(hostPort string) {
 	var randInt = rand.New(rand.NewSource(time.Now().UnixNano()))
 	client := redis.NewClient(&redis.Options{
 		Addr: hostPort,
 	})
 
-	randomKey := benchmark.CreateKey(randInt.Intn(bm.testConfig.Variant1))
-	randomValue := benchmark.CreateValue(randInt.Intn(bm.testConfig.Variant2))
-
 	for work := range bm.workChannel {
+		randomKey := benchmark.CreateKey(randInt.Intn(bm.testConfig.Variant1))
+		randomValue := benchmark.CreateValue(randInt.Intn(bm.testConfig.Variant2))
 		bm.runners[work.operation].DoOneOperation(client, bm.testConfig.Results, randomKey, randomValue)
 	}
 
-	wg.Done()
+	bm.waitGroup.Done()
 }
 
 func (bm *Benchmark) produceWork() {
@@ -293,7 +288,7 @@ func (bm *Benchmark) produceWork() {
 		*bm.expectedResultCount += bm.runners[bm.testName].ResultsPerOperation()
 
 		bm.workChannel <- &WorkUnit{
-			id: i,
+			id:        i,
 			operation: bm.testName,
 		}
 	}
@@ -324,6 +319,7 @@ func (bm *Benchmark) printSummary() {
 		}
 		fmt.Println()
 	}
+
 	for operation, throughputResult := range bm.throughput {
 		elapsedTimeSeconds := float64(throughputResult.ElapsedTime) / 1e9 / float64(bm.testConfig.ClientCount)
 		fmt.Printf("Elapsed time: %0.3f seconds\n", elapsedTimeSeconds)

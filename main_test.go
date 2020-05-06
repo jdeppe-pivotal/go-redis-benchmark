@@ -3,7 +3,7 @@ package main
 import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"rbm/benchmark"
+	"rbm/operations"
 )
 
 var _ = Describe("Benchmark test operations", func() {
@@ -46,7 +46,7 @@ var _ = Describe("Benchmark test operations", func() {
 	Context("NewBenchmark with single test", func() {
 		It("Should contain a single value testDistribution", func() {
 			testOpDistribution := map[string]int{"fakeTest": 1}
-			bm := NewBenchmark(testOpDistribution, &benchmark.TestConfig{}, false)
+			bm := NewBenchmark(testOpDistribution, &operations.TestConfig{}, false)
 
 			Expect(bm.testNames).To(ContainElement("fakeTest"))
 			Expect(bm.testDistribution).To(ContainElement("fakeTest"))
@@ -56,7 +56,7 @@ var _ = Describe("Benchmark test operations", func() {
 	Context("NewBenchmark with multiple tests", func() {
 		It("Should contain multiple values in the testDistribution", func() {
 			testOpDistribution := map[string]int{"fakeTestA": 1, "fakeTestB": 2, "fakeTestC": 3}
-			bm := NewBenchmark(testOpDistribution, &benchmark.TestConfig{}, false)
+			bm := NewBenchmark(testOpDistribution, &operations.TestConfig{}, false)
 
 			Expect(bm.testNames).To(ConsistOf("fakeTestC", "fakeTestA", "fakeTestB"))
 			Expect(bm.testDistribution).To(ConsistOf(
@@ -73,7 +73,7 @@ var _ = Describe("Benchmark test operations", func() {
 	Context("produceWork with multiple tests", func() {
 		It("Should produce random test distribution", func() {
 			testOpDistribution := map[string]int{"fakeTestA": 1, "fakeTestB": 1}
-			bm := NewBenchmark(testOpDistribution, &benchmark.TestConfig{
+			bm := NewBenchmark(testOpDistribution, &operations.TestConfig{
 				ClientCount: 1,
 				Iterations: 10,
 			}, false)

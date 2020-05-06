@@ -1,4 +1,4 @@
-package benchmark
+package operations
 
 import "github.com/go-redis/redis/v7"
 

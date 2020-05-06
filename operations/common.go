@@ -1,4 +1,4 @@
-package benchmark
+package operations
 
 import (
 	"fmt"

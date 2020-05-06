@@ -10,7 +10,7 @@ import (
 	"math/rand"
 	"os"
 	"os/signal"
-	"rbm/benchmark"
+	"rbm/operations"
 	"sort"
 	"strconv"
 	"strings"
@@ -32,11 +32,11 @@ type WorkUnit struct {
 type Benchmark struct {
 	testNames           []string
 	testDistribution    []string
-	testConfig          *benchmark.TestConfig
-	runners             map[string]benchmark.Runner
+	testConfig          *operations.TestConfig
+	runners             map[string]operations.Runner
 	workChannel         chan *WorkUnit
 	operationLatencies  map[string]map[int]int
-	throughputResults   map[string]*benchmark.ThroughputResult
+	throughputResults   map[string]*operations.ThroughputResult
 	resultCount         *int32
 	expectedResultCount *int32
 	workCompleted       bool
@@ -54,7 +54,7 @@ func main() {
 	bm.PrintSummary()
 }
 
-func processOptions(args []string) (map[string]int, *benchmark.TestConfig, bool) {
+func processOptions(args []string) (map[string]int, *operations.TestConfig, bool) {
 	var hostsPorts string
 	var iterations int
 	var clientCount int
@@ -104,7 +104,7 @@ func processOptions(args []string) (map[string]int, *benchmark.TestConfig, bool)
 
 	testOpDistribution := mapTestsToDistribution(testNames)
 
-	testConfig := &benchmark.TestConfig{
+	testConfig := &operations.TestConfig{
 		HostPort:     hostsPortsList,
 		ClientCount:  clientCount,
 		Iterations:   iterations,
@@ -114,7 +114,7 @@ func processOptions(args []string) (map[string]int, *benchmark.TestConfig, bool)
 		IgnoreErrors: ignoreErrors,
 		Churn:        churn,
 		Bulk:         bulk,
-		Results:      make(chan *benchmark.OperationResult, clientCount*2),
+		Results:      make(chan *operations.OperationResult, clientCount*2),
 	}
 
 	return testOpDistribution, testConfig, rawPercentiles
@@ -154,60 +154,60 @@ func mapTestsToDistribution(rawTestsArg string) map[string]int {
 	return proportions
 }
 
-func NewBenchmark(testOpDistribution map[string]int, testConfig *benchmark.TestConfig, rawPercentiles bool) *Benchmark {
-	var runner benchmark.Runner
+func NewBenchmark(testOpDistribution map[string]int, testConfig *operations.TestConfig, rawPercentiles bool) *Benchmark {
+	var runner operations.Runner
 
 	latencies := make(map[string]map[int]int)
-	throughput := make(map[string]*benchmark.ThroughputResult)
-	runners := make(map[string]benchmark.Runner, 0)
+	throughput := make(map[string]*operations.ThroughputResult)
+	runners := make(map[string]operations.Runner, 0)
 
 	for testName, _ := range testOpDistribution {
 		switch testName {
 		case "ping":
-			runner = benchmark.NewPingBenchmark(testConfig)
+			runner = operations.NewPingBenchmark(testConfig)
 			latencies[testName] = make(map[int]int)
-			throughput[testName] = new(benchmark.ThroughputResult)
+			throughput[testName] = new(operations.ThroughputResult)
 
 			break
 		case "sadd":
-			runner = benchmark.NewSaddBenchmark(testConfig)
+			runner = operations.NewSaddBenchmark(testConfig)
 			latencies[testName] = make(map[int]int)
-			throughput[testName] = new(benchmark.ThroughputResult)
+			throughput[testName] = new(operations.ThroughputResult)
 
 			break
 		case "smembers":
-			runner = benchmark.NewSmembersBenchmark(testConfig)
+			runner = operations.NewSmembersBenchmark(testConfig)
 			latencies[testName] = make(map[int]int)
-			throughput[testName] = new(benchmark.ThroughputResult)
+			throughput[testName] = new(operations.ThroughputResult)
 
 			break
 		case "srem":
-			runner = benchmark.NewSremBenchmark(testConfig)
+			runner = operations.NewSremBenchmark(testConfig)
 			latencies[testName] = make(map[int]int)
-			throughput[testName] = new(benchmark.ThroughputResult)
+			throughput[testName] = new(operations.ThroughputResult)
 			// Because srem also does sadds
 			latencies["sadd"] = make(map[int]int)
-			throughput["sadd"] = new(benchmark.ThroughputResult)
+			throughput["sadd"] = new(operations.ThroughputResult)
 			break
 		case "del":
-			runner = benchmark.NewDelBenchmark(testConfig)
+			runner = operations.NewDelBenchmark(testConfig)
 			latencies[testName] = make(map[int]int)
-			throughput[testName] = new(benchmark.ThroughputResult)
+			throughput[testName] = new(operations.ThroughputResult)
 
 			// Because del also does sadds
 			latencies["sadd"] = make(map[int]int)
-			throughput["sadd"] = new(benchmark.ThroughputResult)
+			throughput["sadd"] = new(operations.ThroughputResult)
 			break
 		case "pubsub":
-			runner = benchmark.NewPubSubBenchmark(testConfig)
+			runner = operations.NewPubSubBenchmark(testConfig)
 			latencies[testName] = make(map[int]int)
-			throughput[testName] = new(benchmark.ThroughputResult)
+			throughput[testName] = new(operations.ThroughputResult)
 			break
 		default:
 			if strings.HasPrefix(testName, "fakeTest") {
-				runner = benchmark.NewFakeBenchmark(testConfig)
+				runner = operations.NewFakeBenchmark(testConfig)
 				latencies[testName] = make(map[int]int)
-				throughput[testName] = new(benchmark.ThroughputResult)
+				throughput[testName] = new(operations.ThroughputResult)
 			} else {
 				panic(fmt.Sprintf("unknown test: %s", testName))
 			}
@@ -310,7 +310,7 @@ func (bm *Benchmark) flushAll() {
 
 func (bm *Benchmark) processResults() {
 	var lateMap map[int]int
-	var throughputResult *benchmark.ThroughputResult
+	var throughputResult *operations.ThroughputResult
 	var elapsedTime uint64 = 0
 	ticker := time.NewTicker(1 * time.Second)
 
@@ -343,8 +343,8 @@ func (bm *Benchmark) consumeWork(hostPort string) {
 	})
 
 	for work := range bm.workChannel {
-		randomKey := benchmark.CreateKey(randInt.Intn(bm.testConfig.Variant1))
-		randomValue := benchmark.CreateValue(randInt.Intn(bm.testConfig.Variant2))
+		randomKey := operations.CreateKey(randInt.Intn(bm.testConfig.Variant1))
+		randomValue := operations.CreateValue(randInt.Intn(bm.testConfig.Variant2))
 		bm.runners[work.operation].DoOneOperation(client, bm.testConfig.Results, randomKey, randomValue)
 	}
 

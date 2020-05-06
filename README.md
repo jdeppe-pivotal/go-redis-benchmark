@@ -47,6 +47,7 @@ This tool is intended to be similar to `redis-benchmark` with a few additional c
 - `-x int` Randomized value to select a given set to use for each operation
 - `-y int` Randomized value to define the member to add to the set
 
+Typically you would use large `y` values so that a new member is added for each iteration.
 #### `smembers` benchmark test
 
 `smembers` pre-populates sets with members and then calls smembers on a random set for each iteration:
@@ -85,3 +86,6 @@ To cross-compile for another platform (example build a Linux exe on Mac)
 
     $ GOOS=linux GOARCH=amd64 go build
 
+### Testing
+
+[Ginkgo](https://github.com/onsi/ginkgo) is used for the few tests that do exist.

@@ -29,6 +29,7 @@ type Benchmark struct {
 	WorkCompleted       bool
 	WaitGroup           *sync.WaitGroup
 	Logger              *log.Logger
+	Writer              io.Writer
 	RawPercentiles      bool
 }
 
@@ -115,6 +116,7 @@ func NewBenchmark(testOpDistribution map[string]int, testConfig *operations.Test
 		WorkCompleted:       false,
 		WaitGroup:           &sync.WaitGroup{},
 		Logger:              log.New(os.Stdout, "rbm", log.LstdFlags),
+		Writer:              os.Stdout,
 		RawPercentiles:      rawPercentiles,
 	}
 
@@ -148,7 +150,8 @@ func makeTestOpDistributions(testOpDistribution map[string]int) ([]string, []str
 	return testNames, distribution
 }
 
-func (bm *Benchmark) SetLogWriter(writer io.Writer) {
+func (bm *Benchmark) SetWriter(writer io.Writer) {
+	bm.Writer = writer
 	bm.Logger.SetOutput(writer)
 }
 
@@ -176,7 +179,7 @@ func (bm *Benchmark) Launch() {
 
 func (bm *Benchmark) flushAll() {
 	if bm.TestConfig.Flush {
-		fmt.Print("Flushing all...")
+		fmt.Fprint(bm.Writer, "Flushing all...")
 		client := redis.NewClient(&redis.Options{
 			Addr:        bm.TestConfig.HostPort[0],
 			ReadTimeout: time.Duration(60 * time.Second),
@@ -187,7 +190,7 @@ func (bm *Benchmark) flushAll() {
 		}
 		client.Close()
 
-		fmt.Println("Done!")
+		fmt.Fprintln(bm.Writer, "Done!")
 	}
 }
 
@@ -253,9 +256,9 @@ func (bm *Benchmark) ProduceWork() {
 
 func (bm *Benchmark) PrintSummary() {
 	for operation, lateMap := range bm.OperationLatencies {
-		fmt.Println()
-		fmt.Printf("Latencies for: %s\n", operation)
-		fmt.Println("============================")
+		fmt.Fprintln(bm.Writer)
+		fmt.Fprintf(bm.Writer, "Latencies for: %s\n", operation)
+		fmt.Fprintln(bm.Writer, "============================")
 		var keys []int
 		summedValues := 0
 		for k, v := range lateMap {
@@ -279,14 +282,14 @@ func (bm *Benchmark) PrintSummary() {
 			remainingSummed := summedValues
 			for _, k := range keys {
 				percent := (float64(remainingSummed) / float64(summedValues)) * 100
-				fmt.Printf("%8.3f%% <= %4d ms  (%d/%d)\n", percent, k, remainingSummed, summedValues)
+				fmt.Fprintf(bm.Writer, "%8.3f%% <= %4d ms  (%d/%d)\n", percent, k, remainingSummed, summedValues)
 				remainingSummed -= lateMap[k]
 			}
 		} else {
 			percentiles := []int{100, 99, 98, 97, 96, 95, 94, 93, 92, 91, 90, 85, 80}
 			for _, p := range percentiles {
 				value, position := bm.PercentileValue(p, ascendingValues)
-				fmt.Printf("% 4d%% <= %5.1f ms  (%d/%d)\n", p, value, position, summedValues)
+				fmt.Fprintf(bm.Writer, "% 4d%% <= %5.1f ms  (%d/%d)\n", p, value, position, summedValues)
 			}
 		}
 
@@ -296,20 +299,20 @@ func (bm *Benchmark) PrintSummary() {
 		elapsedTimeSeconds := float64(throughputResult.ElapsedTime) / 1e9 / float64(bm.TestConfig.ClientCount)
 		throughputSec := float64(throughputResult.OperationCount) / elapsedTimeSeconds
 
-		fmt.Println()
-		fmt.Printf("Summary for: %s\n", operation)
-		fmt.Println("============================")
-		fmt.Printf("Throughput: %0.2f ops/sec\n", throughputSec)
-		fmt.Printf("Operations: %d\n", throughputResult.OperationCount)
-		fmt.Printf("Elapsed time: %0.3f seconds\n", elapsedTimeSeconds)
+		fmt.Fprintln(bm.Writer)
+		fmt.Fprintf(bm.Writer, "Summary for: %s\n", operation)
+		fmt.Fprintln(bm.Writer, "============================")
+		fmt.Fprintf(bm.Writer, "Throughput: %0.2f ops/sec\n", throughputSec)
+		fmt.Fprintf(bm.Writer, "Operations: %d\n", throughputResult.OperationCount)
+		fmt.Fprintf(bm.Writer, "Elapsed time: %0.3f seconds\n", elapsedTimeSeconds)
 	}
 
-	fmt.Println()
-	fmt.Printf("Clients:    %d\n", bm.TestConfig.ClientCount)
-	fmt.Printf("Operations: %d\n", *bm.ResultCount)
-	fmt.Printf("Variant1:   %d\n", bm.TestConfig.Variant1)
-	fmt.Printf("Variant2:   %d\n", bm.TestConfig.Variant2)
-	fmt.Println()
+	fmt.Fprintln(bm.Writer)
+	fmt.Fprintf(bm.Writer, "Clients:    %d\n", bm.TestConfig.ClientCount)
+	fmt.Fprintf(bm.Writer, "Operations: %d\n", *bm.ResultCount)
+	fmt.Fprintf(bm.Writer, "Variant1:   %d\n", bm.TestConfig.Variant1)
+	fmt.Fprintf(bm.Writer, "Variant2:   %d\n", bm.TestConfig.Variant2)
+	fmt.Fprintln(bm.Writer)
 }
 
 func (bm *Benchmark) PercentileValue(percentile int, sortedData []int) (float64, int) {

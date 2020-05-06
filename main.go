@@ -6,6 +6,7 @@ import (
 	"github.com/go-redis/redis/v7"
 	"io"
 	"log"
+	"math"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -34,25 +35,26 @@ type Benchmark struct {
 	testConfig          *benchmark.TestConfig
 	runners             map[string]benchmark.Runner
 	workChannel         chan *WorkUnit
-	latencies           map[string]map[int]int
-	throughput          map[string]*benchmark.ThroughputResult
+	operationLatencies  map[string]map[int]int
+	throughputResults   map[string]*benchmark.ThroughputResult
 	resultCount         *int32
 	expectedResultCount *int32
 	workCompleted       bool
 	waitGroup           *sync.WaitGroup
 	logger              *log.Logger
+	rawPercentiles      bool
 }
 
 func main() {
-	testOpDistribution, testConfig := processOptions(os.Args[1:])
+	testOpDistribution, testConfig, rawPercentiles := processOptions(os.Args[1:])
 
-	bm := NewBenchmark(testOpDistribution, testConfig)
+	bm := NewBenchmark(testOpDistribution, testConfig, rawPercentiles)
 	bm.Launch()
 
 	bm.PrintSummary()
 }
 
-func processOptions(args []string) (map[string]int, *benchmark.TestConfig) {
+func processOptions(args []string) (map[string]int, *benchmark.TestConfig, bool) {
 	var hostsPorts string
 	var iterations int
 	var clientCount int
@@ -64,6 +66,7 @@ func processOptions(args []string) (map[string]int, *benchmark.TestConfig) {
 	var ignoreErrors bool
 	var churn bool
 	var bulk bool
+	var rawPercentiles bool
 
 	flagSet := flag.NewFlagSet("rbm", flag.ExitOnError)
 
@@ -88,6 +91,7 @@ func processOptions(args []string) (map[string]int, *benchmark.TestConfig) {
 	flagSet.BoolVar(&ignoreErrors, "ignore-errors", false, "ignore errors from Redis calls")
 	flagSet.BoolVar(&bulk, "bulk", false, "sadd and srem will be given multiple members to add/remove based on -y option")
 	flagSet.BoolVar(&churn, "churn", false, "delete entries immediately after creation by sadd benchmark")
+	flagSet.BoolVar(&rawPercentiles, "raw-percentiles", false, "show raw percentiles instead of a fixed (and calculated) set")
 
 	flagSet.Parse(args)
 
@@ -100,7 +104,7 @@ func processOptions(args []string) (map[string]int, *benchmark.TestConfig) {
 
 	testOpDistribution := mapTestsToDistribution(testNames)
 
-	return testOpDistribution, &benchmark.TestConfig{
+	testConfig := &benchmark.TestConfig{
 		HostPort:     hostsPortsList,
 		ClientCount:  clientCount,
 		Iterations:   iterations,
@@ -112,6 +116,8 @@ func processOptions(args []string) (map[string]int, *benchmark.TestConfig) {
 		Bulk:         bulk,
 		Results:      make(chan *benchmark.OperationResult, clientCount*2),
 	}
+
+	return testOpDistribution, testConfig, rawPercentiles
 }
 
 // Convert -t option such as 'sadd:3,srem:10' into an actual map
@@ -148,7 +154,7 @@ func mapTestsToDistribution(rawTestsArg string) map[string]int {
 	return proportions
 }
 
-func NewBenchmark(testOpDistribution map[string]int, testConfig *benchmark.TestConfig) *Benchmark {
+func NewBenchmark(testOpDistribution map[string]int, testConfig *benchmark.TestConfig, rawPercentiles bool) *Benchmark {
 	var runner benchmark.Runner
 
 	latencies := make(map[string]map[int]int)
@@ -219,13 +225,14 @@ func NewBenchmark(testOpDistribution map[string]int, testConfig *benchmark.TestC
 		testConfig:          testConfig,
 		runners:             runners,
 		workChannel:         make(chan *WorkUnit, testConfig.ClientCount),
-		latencies:           latencies,
-		throughput:          throughput,
+		operationLatencies:  latencies,
+		throughputResults:   throughput,
 		resultCount:         new(int32),
 		expectedResultCount: new(int32),
 		workCompleted:       false,
 		waitGroup:           &sync.WaitGroup{},
 		logger:              log.New(os.Stdout, "rbm", log.LstdFlags),
+		rawPercentiles:      rawPercentiles,
 	}
 
 	// set up signal handler for CTRL-C
@@ -312,9 +319,9 @@ func (bm *Benchmark) processResults() {
 	for {
 		select {
 		case r := <-bm.testConfig.Results:
-			lateMap = bm.latencies[r.Operation]
+			lateMap = bm.operationLatencies[r.Operation]
 			lateMap[int(r.Latency.Milliseconds())+1]++
-			throughputResult = bm.throughput[r.Operation]
+			throughputResult = bm.throughputResults[r.Operation]
 			throughputResult.OperationCount++
 			throughputResult.ElapsedTime += uint64(r.Latency.Nanoseconds())
 			elapsedTime += uint64(r.Latency.Nanoseconds())
@@ -362,7 +369,7 @@ func (bm *Benchmark) produceWork() {
 }
 
 func (bm *Benchmark) PrintSummary() {
-	for operation, lateMap := range bm.latencies {
+	for operation, lateMap := range bm.operationLatencies {
 		fmt.Println()
 		fmt.Printf("Latencies for: %s\n", operation)
 		fmt.Println("============================")
@@ -373,17 +380,36 @@ func (bm *Benchmark) PrintSummary() {
 			summedValues += v
 		}
 
-		sort.Sort(sort.Reverse(sort.IntSlice(keys)))
-
-		remainingSummed := summedValues
+		sort.Sort(sort.IntSlice(keys))
+		ascendingValues := make([]int, summedValues)
+		idx := 0
 		for _, k := range keys {
-			percent := (float64(remainingSummed) / float64(summedValues)) * 100
-			fmt.Printf("%8.3f%% <= %4d ms  (%d/%d)\n", percent, k, remainingSummed, summedValues)
-			remainingSummed -= lateMap[k]
+			for i := 0; i < lateMap[k]; i++ {
+				ascendingValues[idx] = k
+				idx++
+			}
 		}
+
+		if bm.rawPercentiles {
+			sort.Sort(sort.Reverse(sort.IntSlice(keys)))
+
+			remainingSummed := summedValues
+			for _, k := range keys {
+				percent := (float64(remainingSummed) / float64(summedValues)) * 100
+				fmt.Printf("%8.3f%% <= %4d ms  (%d/%d)\n", percent, k, remainingSummed, summedValues)
+				remainingSummed -= lateMap[k]
+			}
+		} else {
+			percentiles := []int{100, 99, 98, 97, 96, 95, 94, 93, 92, 91, 90, 85, 80}
+			for _, p := range percentiles {
+				value, position := bm.PercentileValue(p, ascendingValues)
+				fmt.Printf("% 4d%% <= %5.1f ms  (%d/%d)\n", p, value, position, summedValues)
+			}
+		}
+
 	}
 
-	for operation, throughputResult := range bm.throughput {
+	for operation, throughputResult := range bm.throughputResults {
 		elapsedTimeSeconds := float64(throughputResult.ElapsedTime) / 1e9 / float64(bm.testConfig.ClientCount)
 		throughputSec := float64(throughputResult.OperationCount) / elapsedTimeSeconds
 
@@ -401,4 +427,19 @@ func (bm *Benchmark) PrintSummary() {
 	fmt.Printf("Variant1:   %d\n", bm.testConfig.Variant1)
 	fmt.Printf("Variant2:   %d\n", bm.testConfig.Variant2)
 	fmt.Println()
+}
+
+func (bm *Benchmark) PercentileValue(percentile int, sortedData []int) (float64, int) {
+	if percentile == 100 {
+		return float64(sortedData[len(sortedData)-1]), len(sortedData)
+	}
+
+	position := float64(len(sortedData)) * (float64(percentile) / 100)
+	intPosition := int(math.Ceil(position))
+
+	if intPosition == int(position) {
+		return float64(sortedData[intPosition]), intPosition
+	} else {
+		return float64(sortedData[intPosition]+sortedData[intPosition-1]) / 2, intPosition
+	}
 }

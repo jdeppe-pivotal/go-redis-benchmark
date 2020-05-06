@@ -76,7 +76,7 @@ func processOptions() (string, *benchmark.TestConfig) {
   smembers: the number of elements to add to each set
   del: the number of entries to create in a set before deleting it`)
 	flag.StringVar(&testName, "t", "sadd", "benchmark to run: del, ping, pubsub, sadd, setOperations, smembers, srem")
-	flag.BoolVar(&flush, "flush", true, "flush after each benchmark runs")
+	flag.BoolVar(&flush, "flush", true, "flush before starting the benchmark run")
 	flag.BoolVar(&help, "help", false, "help")
 	flag.BoolVar(&ignoreErrors, "ignore-errors", false, "ignore errors from Redis calls")
 	flag.BoolVar(&bulk, "bulk", false, "sadd and srem will be given multiple members to add/remove based on -y option")
@@ -106,8 +106,8 @@ func processOptions() (string, *benchmark.TestConfig) {
 }
 
 func (bm *Benchmark) launch() {
+	bm.flushAll()
 
-	// Process results
 	bm.waitGroup.Add(1)
 	go bm.processResults()
 
@@ -123,7 +123,6 @@ func (bm *Benchmark) launch() {
 
 	// Do cleanup
 	bm.runners[bm.testName].Cleanup()
-	bm.flushAll()
 }
 
 func (bm *Benchmark) flushAll() {

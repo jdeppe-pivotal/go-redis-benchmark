@@ -58,6 +58,11 @@ func NewBenchmark(testOpDistribution map[string]int, testConfig *operations.Test
 			latencies[testName] = make(map[int]int)
 			throughput[testName] = new(operations.ThroughputResult)
 
+			if testConfig.Churn {
+				latencies["srem"] = make(map[int]int)
+				throughput["srem"] = new(operations.ThroughputResult)
+			}
+
 			break
 		case "smembers":
 			runner = operations.NewSmembersBenchmark(testConfig)

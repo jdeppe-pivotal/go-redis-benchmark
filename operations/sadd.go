@@ -35,7 +35,11 @@ func (sadd *SaddBenchmark) Cleanup() {
 }
 
 func (sadd *SaddBenchmark) ResultsPerOperation() int32 {
-	return 1
+	if sadd.config.Churn {
+		return 2
+	} else {
+		return 1
+	}
 }
 
 func (sadd *SaddBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult, key string, member string) {
@@ -58,6 +62,7 @@ func (sadd *SaddBenchmark) DoOneOperation(client *redis.Client, results chan *Op
 	}
 
 	if sadd.config.Churn {
+		sremStartTime := time.Now()
 		if sadd.config.Bulk {
 			err = client.SRem(key, sadd.members).Err()
 		} else {
@@ -65,6 +70,11 @@ func (sadd *SaddBenchmark) DoOneOperation(client *redis.Client, results chan *Op
 		}
 		if err != nil && !sadd.config.IgnoreErrors {
 			panic(err)
+		}
+
+		results <- &OperationResult{
+			Operation: "srem",
+			Latency:   time.Now().Sub(sremStartTime),
 		}
 	}
 

@@ -182,6 +182,7 @@ func (bm *Benchmark) flushAll() {
 		fmt.Fprint(bm.Writer, "Flushing all...")
 		client := redis.NewClient(&redis.Options{
 			Addr:        bm.TestConfig.HostPort[0],
+			Password:    bm.TestConfig.Password,
 			ReadTimeout: time.Duration(60 * time.Second),
 		})
 		err := client.FlushAll().Err()
@@ -226,6 +227,7 @@ func (bm *Benchmark) consumeWork(hostPort string) {
 	var randInt = rand.New(rand.NewSource(time.Now().UnixNano()))
 	client := redis.NewClient(&redis.Options{
 		Addr: hostPort,
+		Password: bm.TestConfig.Password,
 	})
 
 	for work := range bm.WorkChannel {

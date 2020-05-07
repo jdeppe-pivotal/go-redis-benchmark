@@ -26,6 +26,7 @@ func main() {
 
 func processOptions(args []string) (map[string]int, *operations.TestConfig, bool) {
 	var hostsPorts string
+	var password string
 	var iterations int
 	var clientCount int
 	var variant1 int
@@ -41,6 +42,7 @@ func processOptions(args []string) (map[string]int, *operations.TestConfig, bool
 	flagSet := flag.NewFlagSet("rbm", flag.ExitOnError)
 
 	flagSet.StringVar(&hostsPorts, "h", HOST_PORT, "comma-separated host:port list")
+	flagSet.StringVar(&password, "p", "", "password")
 	flagSet.IntVar(&iterations, "i", ITERATIONS, "iterations of the test to run - divided among clients")
 	flagSet.IntVar(&clientCount, "c", CLIENT_COUNT, "number of clients to use")
 	flagSet.IntVar(&variant1, "x", 1, `variant 1 - test dependent.
@@ -76,6 +78,7 @@ func processOptions(args []string) (map[string]int, *operations.TestConfig, bool
 
 	testConfig := &operations.TestConfig{
 		HostPort:     hostsPortsList,
+		Password:	  password,
 		ClientCount:  clientCount,
 		Iterations:   iterations,
 		Variant1:     variant1,

@@ -24,6 +24,7 @@ func NewSremBenchmark(config *TestConfig) Runner {
 func (srem *SremBenchmark) Setup() {
 	client := redis.NewClient(&redis.Options{
 		Addr: srem.config.HostPort[0],
+		Password: srem.config.Password,
 	})
 	srem.members = make([]string, srem.config.Variant2)
 	for j := 0; j < srem.config.Variant2; j++ {

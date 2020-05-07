@@ -38,6 +38,7 @@ func (bm *PubSubBenchmark) Setup() {
 	for i := 0; i < bm.config.Variant1; i++ {
 		client := redis.NewClient(&redis.Options{
 			Addr: bm.config.HostPort[i % len(bm.config.HostPort)],
+			Password: bm.config.Password,
 		})
 
 		pubsub := client.Subscribe(CHANNEL)
@@ -57,6 +58,7 @@ func (bm *PubSubBenchmark) Setup() {
 
 	bm.publisher = redis.NewClient(&redis.Options{
 		Addr: bm.config.HostPort[0],
+		Password: bm.config.Password,
 	})
 
 	for _, s := range bm.subscribers {

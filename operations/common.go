@@ -9,6 +9,7 @@ import (
 
 type TestConfig struct {
 	HostPort     []string
+	Password 	 string
 	ClientCount  int
 	Iterations   int
 	Variant1     int

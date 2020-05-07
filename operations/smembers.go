@@ -24,6 +24,7 @@ func NewSmembersBenchmark(config *TestConfig) Runner {
 func (smembers *SmembersBenchmark) Setup() {
 	client := redis.NewClient(&redis.Options{
 		Addr: smembers.config.HostPort[0],
+		Password: smembers.config.Password,
 	})
 
 	for i := 0; i < smembers.config.Variant1; i++ {

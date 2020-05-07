@@ -323,7 +323,7 @@ func (bm *Benchmark) PercentileValue(percentile int, sortedData []int) (float64,
 	}
 
 	position := float64(len(sortedData)) * (float64(percentile) / 100)
-	intPosition := int(math.Ceil(position))
+	intPosition := int(math.Min(math.Ceil(position), float64(len(sortedData) - 1)))
 
 	if intPosition == int(position) {
 		return float64(sortedData[intPosition]), intPosition

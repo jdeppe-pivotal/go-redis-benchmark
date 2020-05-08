@@ -132,12 +132,7 @@ func NewBenchmark(testOpDistribution map[string]int, testConfig *operations.Test
 	signal.Notify(signalChan, os.Interrupt)
 	go func() {
 		<-signalChan
-
 		bench.Running = false
-		bench.WaitGroup.Wait()
-		bench.PrintSummary()
-
-		os.Exit(0)
 	}()
 
 	return bench

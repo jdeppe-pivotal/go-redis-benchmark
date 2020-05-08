@@ -132,7 +132,7 @@ func NewBenchmark(testOpDistribution map[string]int, testConfig *operations.Test
 	signal.Notify(signalChan, os.Interrupt)
 	go func() {
 		<-signalChan
-		bench.Running = false
+		bench.Stop()
 	}()
 
 	return bench
@@ -178,6 +178,10 @@ func (bm *Benchmark) Launch() {
 	for _, testName := range bm.TestNames {
 		bm.Runners[testName].Cleanup()
 	}
+}
+
+func (bm *Benchmark) Stop() {
+	bm.Running = false
 }
 
 func (bm *Benchmark) flushAll() {

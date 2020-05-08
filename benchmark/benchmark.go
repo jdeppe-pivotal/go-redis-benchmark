@@ -309,7 +309,7 @@ func (bm *Benchmark) PrintSummary() {
 		fmt.Fprintln(bm.Writer, "============================")
 		fmt.Fprintf(bm.Writer, "Throughput: %0.2f ops/sec\n", throughputSec)
 		fmt.Fprintf(bm.Writer, "Operations: %d\n", throughputResult.OperationCount)
-		fmt.Fprintf(bm.Writer, "Accumulated time: %0.3f seconds\n", accumulatedTimeSeconds)
+		fmt.Fprintf(bm.Writer, "Average accumulated time/client: %0.3f seconds\n", accumulatedTimeSeconds)
 	}
 
 	fmt.Fprintln(bm.Writer)

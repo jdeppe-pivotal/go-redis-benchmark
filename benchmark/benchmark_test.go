@@ -35,7 +35,7 @@ var _ = Describe("Benchmark test operations", func() {
 		})
 	})
 
-	Context("produceWork with multiple tests", func() {
+	Context("ProduceWork with multiple tests", func() {
 		It("Should produce random test distribution", func() {
 			testOpDistribution := map[string]int{"fakeTestA": 1, "fakeTestB": 1}
 			bm := benchmark.NewBenchmark(testOpDistribution, &operations.TestConfig{

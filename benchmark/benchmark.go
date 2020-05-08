@@ -27,6 +27,7 @@ type Benchmark struct {
 	ResultCount         *int32
 	ExpectedResultCount *int32
 	WorkCompleted       bool
+	Running             bool
 	WaitGroup           *sync.WaitGroup
 	Logger              *log.Logger
 	Writer              io.Writer
@@ -119,6 +120,7 @@ func NewBenchmark(testOpDistribution map[string]int, testConfig *operations.Test
 		ResultCount:         new(int32),
 		ExpectedResultCount: new(int32),
 		WorkCompleted:       false,
+		Running:             true,
 		WaitGroup:           &sync.WaitGroup{},
 		Logger:              log.New(os.Stdout, "rbm", log.LstdFlags),
 		Writer:              os.Stdout,
@@ -131,7 +133,8 @@ func NewBenchmark(testOpDistribution map[string]int, testConfig *operations.Test
 	go func() {
 		<-signalChan
 
-		bench.WaitGroup.Done()
+		bench.Running = false
+		bench.WaitGroup.Wait()
 		bench.PrintSummary()
 
 		os.Exit(0)
@@ -215,7 +218,7 @@ func (bm *Benchmark) processResults() {
 			lateMap[int(r.Latency.Milliseconds())+1]++
 			throughputResult = bm.ThroughputResults[r.Operation]
 			throughputResult.OperationCount++
-			throughputResult.ElapsedTime += uint64(r.Latency.Nanoseconds())
+			throughputResult.AccumulatedTime += uint64(r.Latency.Nanoseconds())
 			elapsedTime += uint64(r.Latency.Nanoseconds())
 
 			*bm.ResultCount++
@@ -231,7 +234,7 @@ func (bm *Benchmark) processResults() {
 func (bm *Benchmark) consumeWork(hostPort string) {
 	var randInt = rand.New(rand.NewSource(time.Now().UnixNano()))
 	client := redis.NewClient(&redis.Options{
-		Addr: hostPort,
+		Addr:     hostPort,
 		Password: bm.TestConfig.Password,
 	})
 
@@ -247,7 +250,7 @@ func (bm *Benchmark) consumeWork(hostPort string) {
 func (bm *Benchmark) ProduceWork() {
 	var randInt = rand.New(rand.NewSource(time.Now().UnixNano()))
 
-	for i := 0; i < bm.TestConfig.Iterations; i++ {
+	for i := 0; i < bm.TestConfig.Iterations && bm.Running; i++ {
 		randomTestIndex := randInt.Intn(len(bm.TestDistribution))
 		*bm.ExpectedResultCount += bm.Runners[bm.TestDistribution[randomTestIndex]].ResultsPerOperation()
 
@@ -303,15 +306,15 @@ func (bm *Benchmark) PrintSummary() {
 	}
 
 	for operation, throughputResult := range bm.ThroughputResults {
-		elapsedTimeSeconds := float64(throughputResult.ElapsedTime) / 1e9 / float64(bm.TestConfig.ClientCount)
-		throughputSec := float64(throughputResult.OperationCount) / elapsedTimeSeconds
+		accumulatedTimeSeconds := float64(throughputResult.AccumulatedTime) / 1e9 / float64(bm.TestConfig.ClientCount)
+		throughputSec := float64(throughputResult.OperationCount) / accumulatedTimeSeconds
 
 		fmt.Fprintln(bm.Writer)
 		fmt.Fprintf(bm.Writer, "Summary for: %s\n", operation)
 		fmt.Fprintln(bm.Writer, "============================")
 		fmt.Fprintf(bm.Writer, "Throughput: %0.2f ops/sec\n", throughputSec)
 		fmt.Fprintf(bm.Writer, "Operations: %d\n", throughputResult.OperationCount)
-		fmt.Fprintf(bm.Writer, "Elapsed time: %0.3f seconds\n", elapsedTimeSeconds)
+		fmt.Fprintf(bm.Writer, "Accumulated time: %0.3f seconds\n", accumulatedTimeSeconds)
 	}
 
 	fmt.Fprintln(bm.Writer)
@@ -328,7 +331,7 @@ func (bm *Benchmark) PercentileValue(percentile int, sortedData []int) (float64,
 	}
 
 	position := float64(len(sortedData)) * (float64(percentile) / 100)
-	intPosition := int(math.Min(math.Ceil(position), float64(len(sortedData) - 1)))
+	intPosition := int(math.Min(math.Ceil(position), float64(len(sortedData)-1)))
 
 	if intPosition == int(position) {
 		return float64(sortedData[intPosition]), intPosition

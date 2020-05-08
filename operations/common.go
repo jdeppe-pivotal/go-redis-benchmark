@@ -27,8 +27,8 @@ type OperationResult struct {
 }
 
 type ThroughputResult struct {
-	OperationCount int
-	ElapsedTime    uint64
+	OperationCount  int
+	AccumulatedTime uint64
 }
 
 type Runner interface {

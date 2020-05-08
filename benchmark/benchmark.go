@@ -225,7 +225,7 @@ func (bm *Benchmark) processResults() {
 				return
 			}
 		case <-ticker.C:
-			log.Printf("-> %0.2f ops/sec (queued: %d)\n", float64(*bm.ResultCount)/(float64(elapsedTime)/1e9)*float64(bm.TestConfig.ClientCount), len(bm.WorkChannel))
+			fmt.Printf("-> %0.2f ops/sec (queued: %d)\n", float64(*bm.ResultCount)/(float64(elapsedTime)/1e9)*float64(bm.TestConfig.ClientCount), len(bm.WorkChannel))
 		}
 	}
 }

@@ -122,7 +122,7 @@ func NewBenchmark(testOpDistribution map[string]int, testConfig *operations.Test
 		WorkCompleted:       false,
 		Running:             true,
 		WaitGroup:           &sync.WaitGroup{},
-		Logger:              log.New(os.Stdout, "rbm", log.LstdFlags),
+		Logger:              log.New(os.Stdout, "", log.LstdFlags),
 		Writer:              os.Stdout,
 		RawPercentiles:      rawPercentiles,
 	}
@@ -230,7 +230,7 @@ func (bm *Benchmark) processResults() {
 			if len(bm.WorkChannel) == 0 {
 				queueEmptyMessage = "(queue == 0 !)"
 			}
-			log.Printf("-> %0.2f ops/sec %s", float64(*bm.ResultCount)/(float64(elapsedTime)/1e9)*float64(bm.TestConfig.ClientCount), queueEmptyMessage)
+			bm.Logger.Printf("-> %0.2f ops/sec %s", float64(*bm.ResultCount)/(float64(elapsedTime)/1e9)*float64(bm.TestConfig.ClientCount), queueEmptyMessage)
 		}
 	}
 }

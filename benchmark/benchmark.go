@@ -206,6 +206,7 @@ func (bm *Benchmark) processResults() {
 	var lateMap map[int]int
 	var throughputResult *operations.ThroughputResult
 	var elapsedTime uint64 = 0
+	var queueEmptyMessage string
 	ticker := time.NewTicker(1 * time.Second)
 
 	defer bm.WaitGroup.Done()
@@ -225,7 +226,11 @@ func (bm *Benchmark) processResults() {
 				return
 			}
 		case <-ticker.C:
-			log.Printf("-> %0.2f ops/sec (queued: %d)\n", float64(*bm.ResultCount)/(float64(elapsedTime)/1e9)*float64(bm.TestConfig.ClientCount), len(bm.WorkChannel))
+			queueEmptyMessage = ""
+			if len(bm.WorkChannel) == 0 {
+				queueEmptyMessage = "(queue == 0 !)"
+			}
+			log.Printf("-> %0.2f ops/sec %s", float64(*bm.ResultCount)/(float64(elapsedTime)/1e9)*float64(bm.TestConfig.ClientCount), queueEmptyMessage)
 		}
 	}
 }
@@ -324,6 +329,8 @@ func (bm *Benchmark) PrintSummary() {
 	fmt.Fprintln(bm.Writer)
 }
 
+//Return the value of the given percentile and the position in the list of results
+//at which it occurs.
 func (bm *Benchmark) PercentileValue(percentile int, sortedData []int) (float64, int) {
 	if percentile == 100 {
 		return float64(sortedData[len(sortedData)-1]), len(sortedData)

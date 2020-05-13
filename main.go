@@ -78,7 +78,7 @@ func processOptions(args []string) (map[string]int, *operations.TestConfig, bool
 
 	testConfig := &operations.TestConfig{
 		HostPort:     hostsPortsList,
-		Password:	  password,
+		Password:     password,
 		ClientCount:  clientCount,
 		Iterations:   iterations,
 		Variant1:     variant1,

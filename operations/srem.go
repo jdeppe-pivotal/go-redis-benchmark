@@ -16,16 +16,14 @@ var _ Runner = (*SremBenchmark)(nil)
 
 func NewSremBenchmark(config *TestConfig) Runner {
 	return &SremBenchmark{
-		config: config,
+		config:  config,
 		randInt: randInt,
 	}
 }
 
-func (srem *SremBenchmark) Setup() {
-	client := redis.NewClient(&redis.Options{
-		Addr: srem.config.HostPort[0],
-		Password: srem.config.Password,
-	})
+func (srem *SremBenchmark) Setup(clients []*redis.Client) {
+	client := clients[0]
+
 	srem.members = make([]string, srem.config.Variant2)
 	for j := 0; j < srem.config.Variant2; j++ {
 		srem.members[j] = CreateValue(j)
@@ -34,8 +32,6 @@ func (srem *SremBenchmark) Setup() {
 	for i := 0; i < srem.config.Variant1; i++ {
 		client.SAdd(CreateKey(i), srem.members)
 	}
-
-	client.Close()
 }
 
 func (srem *SremBenchmark) Cleanup() {}
@@ -77,4 +73,3 @@ func (srem *SremBenchmark) DoOneOperation(client *redis.Client, results chan *Op
 		Latency:   time.Now().Sub(saddStart),
 	}
 }
-

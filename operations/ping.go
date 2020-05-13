@@ -6,7 +6,7 @@ import (
 )
 
 type PingBenchmark struct {
-	config  *TestConfig
+	config *TestConfig
 }
 
 var _ Runner = (*PingBenchmark)(nil)
@@ -17,7 +17,7 @@ func NewPingBenchmark(config *TestConfig) Runner {
 	}
 }
 
-func (ping *PingBenchmark) Setup() {
+func (ping *PingBenchmark) Setup(clients []*redis.Client) {
 }
 
 func (ping *PingBenchmark) Cleanup() {
@@ -40,4 +40,3 @@ func (ping *PingBenchmark) DoOneOperation(client *redis.Client, results chan *Op
 		Latency:   time.Now().Sub(executionStartTime),
 	}
 }
-

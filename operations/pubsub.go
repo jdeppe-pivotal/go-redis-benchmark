@@ -15,7 +15,6 @@ type PubSubBenchmark struct {
 
 type Subscriber struct {
 	id     int
-	client *redis.Client
 	pubsub *redis.PubSub
 }
 
@@ -31,16 +30,12 @@ func NewPubSubBenchmark(config *TestConfig) *PubSubBenchmark {
 	}
 }
 
-func (bm *PubSubBenchmark) Setup() {
+func (bm *PubSubBenchmark) Setup(clients []*redis.Client) {
 	bm.subscribers = make([]*Subscriber, 0, bm.config.Variant1)
 
 	// Establish connections for subscribers
 	for i := 0; i < bm.config.Variant1; i++ {
-		client := redis.NewClient(&redis.Options{
-			Addr: bm.config.HostPort[i % len(bm.config.HostPort)],
-			Password: bm.config.Password,
-		})
-
+		client := clients[i%len(clients)]
 		pubsub := client.Subscribe(CHANNEL)
 
 		err := waitForSubscription(pubsub)
@@ -50,14 +45,13 @@ func (bm *PubSubBenchmark) Setup() {
 
 		subscription := &Subscriber{
 			id:     i,
-			client: client,
 			pubsub: pubsub,
 		}
 		bm.subscribers = append(bm.subscribers, subscription)
 	}
 
 	bm.publisher = redis.NewClient(&redis.Options{
-		Addr: bm.config.HostPort[0],
+		Addr:     bm.config.HostPort[0],
 		Password: bm.config.Password,
 	})
 

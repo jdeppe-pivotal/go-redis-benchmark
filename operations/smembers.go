@@ -16,16 +16,13 @@ var _ Runner = (*SmembersBenchmark)(nil)
 func NewSmembersBenchmark(config *TestConfig) Runner {
 	randInt := rand.New(rand.NewSource(time.Now().UnixNano()))
 	return &SmembersBenchmark{
-		config: config,
+		config:  config,
 		randInt: randInt,
 	}
 }
 
-func (smembers *SmembersBenchmark) Setup() {
-	client := redis.NewClient(&redis.Options{
-		Addr: smembers.config.HostPort[0],
-		Password: smembers.config.Password,
-	})
+func (smembers *SmembersBenchmark) Setup(clients []*redis.Client) {
+	client := clients[0]
 
 	for i := 0; i < smembers.config.Variant1; i++ {
 		key := CreateKey(i)
@@ -60,4 +57,3 @@ func (smembers *SmembersBenchmark) DoOneOperation(client *redis.Client, results 
 		Latency:   time.Now().Sub(executionStartTime),
 	}
 }
-

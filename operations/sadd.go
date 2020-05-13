@@ -22,7 +22,7 @@ func NewSaddBenchmark(config *TestConfig) Runner {
 	}
 }
 
-func (sadd *SaddBenchmark) Setup() {
+func (sadd *SaddBenchmark) Setup(clients []*redis.Client) {
 	if sadd.config.Bulk {
 		sadd.members = make([]string, sadd.config.Variant2)
 		for j := 0; j < sadd.config.Variant2; j++ {

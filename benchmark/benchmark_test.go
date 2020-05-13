@@ -40,7 +40,7 @@ var _ = Describe("Benchmark test operations", func() {
 			testOpDistribution := map[string]int{"fakeTestA": 1, "fakeTestB": 1}
 			bm := benchmark.NewBenchmark(testOpDistribution, &operations.TestConfig{
 				ClientCount: 1,
-				Iterations: 10,
+				Iterations:  10,
 			}, false)
 
 			workUnits := make([]string, 0, 10)

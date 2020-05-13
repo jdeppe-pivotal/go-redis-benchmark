@@ -7,6 +7,7 @@ import (
 	"log"
 	"math"
 	"math/rand"
+	"net"
 	"os"
 	"os/signal"
 	"rbm/operations"
@@ -21,6 +22,7 @@ type Benchmark struct {
 	TestDistribution    []string
 	TestConfig          *operations.TestConfig
 	Runners             map[string]operations.Runner
+	Clients             []*redis.Client
 	WorkChannel         chan *WorkUnit
 	OperationLatencies  map[string]map[int]int
 	ThroughputResults   map[string]*operations.ThroughputResult
@@ -103,11 +105,12 @@ func NewBenchmark(testOpDistribution map[string]int, testConfig *operations.Test
 			}
 		}
 
-		runner.Setup()
 		runners[testName] = runner
 	}
 
 	testNames, testDistribution := makeTestOpDistributions(testOpDistribution)
+
+	testConfig.HostPort = resolveAddresses(testConfig.HostPort)
 
 	bench := &Benchmark{
 		TestNames:           testNames,
@@ -138,6 +141,27 @@ func NewBenchmark(testOpDistribution map[string]int, testConfig *operations.Test
 	return bench
 }
 
+func resolveAddresses(hostsPorts []string) []string {
+	addresses := make([]string, 0)
+
+	for _, hostPort := range hostsPorts {
+		colonIdx := strings.LastIndex(hostPort, ":")
+		host := hostPort[:colonIdx]
+		port := hostPort[colonIdx+1:]
+
+		resolvedAddresses, err := net.LookupIP(host)
+		if err != nil {
+			panic(err)
+		}
+
+		for _, ip := range resolvedAddresses {
+			addresses = append(addresses, fmt.Sprintf("%s:%s", ip, port))
+		}
+	}
+
+	return addresses
+}
+
 func makeTestOpDistributions(testOpDistribution map[string]int) ([]string, []string) {
 	testNames := make([]string, 0, len(testOpDistribution))
 	distribution := make([]string, 0)
@@ -159,15 +183,18 @@ func (bm *Benchmark) SetWriter(writer io.Writer) {
 }
 
 func (bm *Benchmark) Launch() {
+	bm.ConnectClients()
+
+	bm.SetupRunners()
+
 	bm.flushAll()
 
 	bm.WaitGroup.Add(1)
 	go bm.processResults()
 
 	for i := 0; i < bm.TestConfig.ClientCount; i++ {
-		host := bm.TestConfig.HostPort[i%len(bm.TestConfig.HostPort)]
 		bm.WaitGroup.Add(1)
-		go bm.consumeWork(host)
+		go bm.consumeWork(bm.Clients[i%len(bm.Clients)])
 	}
 
 	go bm.ProduceWork()
@@ -177,6 +204,28 @@ func (bm *Benchmark) Launch() {
 	// Do cleanup
 	for _, testName := range bm.TestNames {
 		bm.Runners[testName].Cleanup()
+	}
+}
+
+func (bm *Benchmark) ConnectClients() {
+	addresses := strings.Join(bm.TestConfig.HostPort, ", ")
+	fmt.Fprintf(bm.Writer, "Addresses: %s\n", addresses)
+
+	clients := make([]*redis.Client, 0)
+	for _, address := range bm.TestConfig.HostPort {
+		client := redis.NewClient(&redis.Options{
+			Addr:     address,
+			Password: bm.TestConfig.Password,
+		})
+
+		clients = append(clients, client)
+	}
+	bm.Clients = clients
+}
+
+func (bm *Benchmark) SetupRunners() {
+	for _, r := range bm.Runners {
+		r.Setup(bm.Clients)
 	}
 }
 
@@ -235,12 +284,8 @@ func (bm *Benchmark) processResults() {
 	}
 }
 
-func (bm *Benchmark) consumeWork(hostPort string) {
+func (bm *Benchmark) consumeWork(client *redis.Client) {
 	var randInt = rand.New(rand.NewSource(time.Now().UnixNano()))
-	client := redis.NewClient(&redis.Options{
-		Addr:     hostPort,
-		Password: bm.TestConfig.Password,
-	})
 
 	for work := range bm.WorkChannel {
 		randomKey := operations.CreateKey(randInt.Intn(bm.TestConfig.Variant1))

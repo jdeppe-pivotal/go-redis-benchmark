@@ -9,7 +9,7 @@ import (
 
 type TestConfig struct {
 	HostPort     []string
-	Password 	 string
+	Password     string
 	ClientCount  int
 	Iterations   int
 	Variant1     int
@@ -32,7 +32,7 @@ type ThroughputResult struct {
 }
 
 type Runner interface {
-	Setup()
+	Setup([]*redis.Client)
 	DoOneOperation(client *redis.Client, results chan *OperationResult, key string, value string)
 	Cleanup()
 	ResultsPerOperation() int32

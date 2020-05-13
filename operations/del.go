@@ -17,12 +17,12 @@ var _ Runner = (*DelBenchmark)(nil)
 func NewDelBenchmark(config *TestConfig) Runner {
 	randInt := rand.New(rand.NewSource(time.Now().UnixNano()))
 	return &DelBenchmark{
-		config: config,
+		config:  config,
 		randInt: randInt,
 	}
 }
 
-func (del *DelBenchmark) Setup() {
+func (del *DelBenchmark) Setup(clients []*redis.Client) {
 	del.members = make([]string, del.config.Variant2)
 	for j := 0; j < del.config.Variant2; j++ {
 		del.members[j] = CreateValue(j)
@@ -59,4 +59,3 @@ func (del *DelBenchmark) DoOneOperation(client *redis.Client, results chan *Oper
 		Latency:   time.Now().Sub(executionStartTime),
 	}
 }
-

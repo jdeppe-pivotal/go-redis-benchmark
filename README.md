@@ -40,6 +40,15 @@ This tool is intended to be similar to `redis-benchmark` with a few additional c
 
 ### Commands supported
 
+#### `hset` benchmark test
+
+`hset` Uses both variants to adjust the test characteristics
+
+- `-x int` Randomized value to select a given hash to use for each operation
+- `-y int` Randomized value to define both the field and value to add to the hash
+
+Typically you would use large `y` values so that a new entry is added for each iteration.
+
 #### `sadd` benchmark test
 
 `sadd` Uses both variants to adjust the test characteristics
@@ -48,6 +57,7 @@ This tool is intended to be similar to `redis-benchmark` with a few additional c
 - `-y int` Randomized value to define the member to add to the set
 
 Typically you would use large `y` values so that a new member is added for each iteration.
+
 #### `smembers` benchmark test
 
 `smembers` pre-populates sets with members and then calls smembers on a random set for each iteration:

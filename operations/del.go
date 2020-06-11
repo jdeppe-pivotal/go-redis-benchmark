@@ -36,7 +36,7 @@ func (del *DelBenchmark) ResultsPerOperation() int32 {
 	return 2
 }
 
-func (del *DelBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult, key string, value string) {
+func (del *DelBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult, key string, field string, value string) {
 	saddStart := time.Now()
 	err := client.SAdd(key, del.members).Err()
 	if err != nil && !del.config.IgnoreErrors {

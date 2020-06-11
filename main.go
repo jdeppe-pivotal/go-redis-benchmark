@@ -46,17 +46,20 @@ func processOptions(args []string) (map[string]int, *operations.TestConfig, bool
 	flagSet.IntVar(&iterations, "i", ITERATIONS, "iterations of the test to run - divided among clients")
 	flagSet.IntVar(&clientCount, "c", CLIENT_COUNT, "number of clients to use")
 	flagSet.IntVar(&variant1, "x", 1, `variant 1 - test dependent.
+  hgetall: the range of hashes to use
+  hset: the range of hashes to use
   sadd: the range of sets to use
   srem: the range of sets to use
   smembers: the range of sets to use
   del: the range of sets to use
   pubsub: the number of subscribers and -c should be used for publishers`)
 	flagSet.IntVar(&variant2, "y", 1, `variant 2 - test dependent.
+  hset: used for both the range of fields and values
   sadd: the range of random member names to add
   srem: the number of elements to add to each set
   smembers: the number of elements to add to each set
   del: the number of entries to create in a set before deleting it`)
-	flagSet.StringVar(&testNames, "t", "sadd", `comma-separated list of benchmark to run: del, ping, pubsub, sadd, setOperations, smembers, srem
+	flagSet.StringVar(&testNames, "t", "sadd", `comma-separated list of benchmark to run: del, hgetall, hset, ping, pubsub, sadd, setOperations, smembers, srem
   Each test can also be assigned a ratio. For example 'sadd:4,smembers:1' will randomly run sadd and smembers operations with a respective proportion of 4:1`)
 	flagSet.BoolVar(&flush, "flush", true, "flush before starting the benchmark run")
 	flagSet.BoolVar(&help, "help", false, "help")

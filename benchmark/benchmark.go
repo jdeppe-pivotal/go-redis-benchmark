@@ -81,6 +81,21 @@ func NewBenchmark(testOpDistribution map[string]int, testConfig *operations.Test
 			latencies["sadd"] = make(map[int]int)
 			throughput["sadd"] = new(operations.ThroughputResult)
 			break
+		case "hgetall":
+			runner = operations.NewHgetallBenchmark(testConfig)
+			latencies[testName] = make(map[int]int)
+			throughput[testName] = new(operations.ThroughputResult)
+			break
+		case "hset":
+			runner = operations.NewHsetBenchmark(testConfig)
+			latencies[testName] = make(map[int]int)
+			throughput[testName] = new(operations.ThroughputResult)
+
+			if testConfig.Churn {
+				latencies["hdel"] = make(map[int]int)
+				throughput["hdel"] = new(operations.ThroughputResult)
+			}
+			break
 		case "del":
 			runner = operations.NewDelBenchmark(testConfig)
 			latencies[testName] = make(map[int]int)
@@ -183,9 +198,9 @@ func (bm *Benchmark) SetWriter(writer io.Writer) {
 }
 
 func (bm *Benchmark) Launch() {
-	bm.ConnectClients()
+	bm.connectClients()
 
-	bm.SetupRunners()
+	bm.setupRunners()
 
 	bm.flushAll()
 
@@ -207,7 +222,7 @@ func (bm *Benchmark) Launch() {
 	}
 }
 
-func (bm *Benchmark) ConnectClients() {
+func (bm *Benchmark) connectClients() {
 	addresses := strings.Join(bm.TestConfig.HostPort, ", ")
 	fmt.Fprintf(bm.Writer, "Addresses: %s\n", addresses)
 
@@ -223,10 +238,17 @@ func (bm *Benchmark) ConnectClients() {
 	bm.Clients = clients
 }
 
-func (bm *Benchmark) SetupRunners() {
-	for _, r := range bm.Runners {
-		r.Setup(bm.Clients)
+func (bm *Benchmark) setupRunners() {
+	fmt.Fprint(bm.Writer, "Setup... ")
+	setup := func() {
+		for _, r := range bm.Runners {
+			r.Setup(bm.Clients)
+		}
 	}
+
+	latency := bm.timedFunction(setup)
+
+	fmt.Fprintf(bm.Writer, "Done! (%0.3fs)\n", latency.Seconds())
 }
 
 func (bm *Benchmark) Stop() {
@@ -235,20 +257,31 @@ func (bm *Benchmark) Stop() {
 
 func (bm *Benchmark) flushAll() {
 	if bm.TestConfig.Flush {
-		fmt.Fprint(bm.Writer, "Flushing all...")
-		client := redis.NewClient(&redis.Options{
-			Addr:        bm.TestConfig.HostPort[0],
-			Password:    bm.TestConfig.Password,
-			ReadTimeout: time.Duration(60 * time.Second),
-		})
-		err := client.FlushAll().Err()
-		if err != nil {
-			panic(fmt.Sprintf("error calling FLUSHALL: %s", err.Error()))
+		fmt.Fprint(bm.Writer, "Flushing all... ")
+		flush := func() {
+			client := redis.NewClient(&redis.Options{
+				Addr:        bm.TestConfig.HostPort[0],
+				Password:    bm.TestConfig.Password,
+				ReadTimeout: time.Duration(60 * time.Second),
+			})
+			err := client.FlushAll().Err()
+			if err != nil {
+				panic(fmt.Sprintf("error calling FLUSHALL: %s", err.Error()))
+			}
+			client.Close()
 		}
-		client.Close()
 
-		fmt.Fprintln(bm.Writer, "Done!")
+		latency := bm.timedFunction(flush)
+
+		fmt.Fprintf(bm.Writer, "Done! (%0.3fs)\n", latency.Seconds())
 	}
+}
+
+func (bm *Benchmark) timedFunction(f func()) time.Duration {
+	executionStartTime := time.Now()
+	f()
+
+	return time.Now().Sub(executionStartTime)
 }
 
 func (bm *Benchmark) processResults() {
@@ -289,8 +322,9 @@ func (bm *Benchmark) consumeWork(client *redis.Client) {
 
 	for work := range bm.WorkChannel {
 		randomKey := operations.CreateKey(randInt.Intn(bm.TestConfig.Variant1))
+		randomField := operations.CreateField(randInt.Intn(bm.TestConfig.Variant2))
 		randomValue := operations.CreateValue(randInt.Intn(bm.TestConfig.Variant2))
-		bm.Runners[work.Operation].DoOneOperation(client, bm.TestConfig.Results, randomKey, randomValue)
+		bm.Runners[work.Operation].DoOneOperation(client, bm.TestConfig.Results, randomKey, randomField, randomValue)
 	}
 
 	bm.WaitGroup.Done()

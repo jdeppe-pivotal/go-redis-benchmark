@@ -70,10 +70,10 @@ func (bm *PubSubBenchmark) ResultsPerOperation() int32 {
 	return int32(bm.config.Variant1)
 }
 
-func (bm *PubSubBenchmark) DoOneOperation(publisher *redis.Client, results chan *OperationResult, key string, value string) {
+func (bm *PubSubBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult, key string, field string, value string) {
 	startTime := time.Now()
 	message := fmt.Sprintf("%d", startTime.UnixNano())
-	err := publisher.Publish(CHANNEL, message).Err()
+	err := client.Publish(CHANNEL, message).Err()
 	if err != nil {
 		panic(err)
 	}

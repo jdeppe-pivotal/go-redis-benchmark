@@ -40,14 +40,14 @@ func (srem *SremBenchmark) ResultsPerOperation() int32 {
 	return 2
 }
 
-func (srem *SremBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult, key string, value string) {
+func (srem *SremBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult, key string, field string, value string) {
 	var err error
 
 	executionStartTime := time.Now()
 	if srem.config.Bulk {
 		err = client.SRem(key, srem.members).Err()
 	} else {
-		err = client.SRem(key, value).Err()
+		err = client.SRem(key, field).Err()
 	}
 	if err != nil && !srem.config.IgnoreErrors {
 		panic(err)
@@ -62,7 +62,7 @@ func (srem *SremBenchmark) DoOneOperation(client *redis.Client, results chan *Op
 	if srem.config.Bulk {
 		err = client.SAdd(key, srem.members).Err()
 	} else {
-		err = client.SAdd(key, value).Err()
+		err = client.SAdd(key, field).Err()
 	}
 	if err != nil && !srem.config.IgnoreErrors {
 		panic(err)

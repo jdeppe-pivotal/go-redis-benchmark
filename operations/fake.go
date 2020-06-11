@@ -24,5 +24,5 @@ func (ping *FakeBenchmark) ResultsPerOperation() int32 {
 	return 1
 }
 
-func (ping *FakeBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult, key string, value string) {
+func (ping *FakeBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult, key string, field string, value string) {
 }

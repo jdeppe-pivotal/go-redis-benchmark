@@ -29,7 +29,7 @@ func (smembers *SmembersBenchmark) Setup(clients []*redis.Client) {
 		client.Del(key)
 		for j := 0; j < smembers.config.Variant2; j++ {
 			member := CreateValue(j)
-			err := client.SAdd(key, member).Err()
+			err := client.HSet(key, member).Err()
 			if err != nil && !smembers.config.IgnoreErrors {
 				panic(err)
 			}
@@ -44,7 +44,7 @@ func (smembers *SmembersBenchmark) ResultsPerOperation() int32 {
 	return 1
 }
 
-func (smembers *SmembersBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult, key string, value string) {
+func (smembers *SmembersBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult, key string, field string, value string) {
 	executionStartTime := time.Now()
 
 	err := client.SMembers(key).Err()

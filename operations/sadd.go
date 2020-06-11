@@ -42,14 +42,14 @@ func (sadd *SaddBenchmark) ResultsPerOperation() int32 {
 	}
 }
 
-func (sadd *SaddBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult, key string, member string) {
+func (sadd *SaddBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult, key string, field string, value string) {
 	var err error
 
 	executionStartTime := time.Now()
 	if sadd.config.Bulk {
 		err = client.SAdd(key, sadd.members).Err()
 	} else {
-		err = client.SAdd(key, member).Err()
+		err = client.SAdd(key, field).Err()
 	}
 
 	if err != nil && !sadd.config.IgnoreErrors {
@@ -66,7 +66,7 @@ func (sadd *SaddBenchmark) DoOneOperation(client *redis.Client, results chan *Op
 		if sadd.config.Bulk {
 			err = client.SRem(key, sadd.members).Err()
 		} else {
-			err = client.SRem(key, member).Err()
+			err = client.SRem(key, field).Err()
 		}
 		if err != nil && !sadd.config.IgnoreErrors {
 			panic(err)

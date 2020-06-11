@@ -33,7 +33,7 @@ type ThroughputResult struct {
 
 type Runner interface {
 	Setup([]*redis.Client)
-	DoOneOperation(client *redis.Client, results chan *OperationResult, key string, value string)
+	DoOneOperation(client *redis.Client, results chan *OperationResult, key string, field string, value string)
 	Cleanup()
 	ResultsPerOperation() int32
 }
@@ -41,9 +41,17 @@ type Runner interface {
 var randInt = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 func CreateKey(i int) string {
-	return fmt.Sprintf("myKey-%05d", i)
+	return indexedString("myKey", i)
+}
+
+func CreateField(i int) string {
+	return indexedString("myField", i)
 }
 
 func CreateValue(i int) string {
-	return fmt.Sprintf("myValue-%010d", i)
+	return indexedString("myValue", i)
+}
+
+func indexedString(prefix string, i int) string {
+	return fmt.Sprintf("%s-%010d", prefix, i)
 }

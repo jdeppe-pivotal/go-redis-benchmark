@@ -170,7 +170,10 @@ func resolveAddresses(hostsPorts []string) []string {
 		}
 
 		for _, ip := range resolvedAddresses {
-			addresses = append(addresses, fmt.Sprintf("%s:%s", ip, port))
+			// Just do ipv4 for now
+			if ip.To4() != nil {
+				addresses = append(addresses, fmt.Sprintf("%s:%s", ip, port))
+			}
 		}
 	}
 

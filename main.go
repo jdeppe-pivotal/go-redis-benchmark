@@ -59,7 +59,7 @@ func processOptions(args []string) (map[string]int, *operations.TestConfig, bool
   srem: the number of elements to add to each set
   smembers: the number of elements to add to each set
   del: the number of entries to create in a set before deleting it`)
-	flagSet.StringVar(&testNames, "t", "sadd", `comma-separated list of benchmark to run: del, hgetall, hset, ping, pubsub, sadd, setOperations, smembers, srem
+	flagSet.StringVar(&testNames, "t", "sadd", `comma-separated list of benchmark to run: del, echo, hgetall, hset, ping, pubsub, sadd, setOperations, smembers, srem
   Each test can also be assigned a ratio. For example 'sadd:4,smembers:1' will randomly run sadd and smembers operations with a respective proportion of 4:1`)
 	flagSet.BoolVar(&flush, "flush", true, "flush before starting the benchmark run")
 	flagSet.BoolVar(&help, "help", false, "help")

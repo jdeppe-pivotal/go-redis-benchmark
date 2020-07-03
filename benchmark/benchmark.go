@@ -50,11 +50,15 @@ func NewBenchmark(testOpDistribution map[string]int, testConfig *operations.Test
 
 	for testName, _ := range testOpDistribution {
 		switch testName {
+		case "echo":
+			runner = operations.NewEchoBenchmark(testConfig)
+			latencies[testName] = make(map[int]int)
+			throughput[testName] = new(operations.ThroughputResult)
+			break
 		case "ping":
 			runner = operations.NewPingBenchmark(testConfig)
 			latencies[testName] = make(map[int]int)
 			throughput[testName] = new(operations.ThroughputResult)
-
 			break
 		case "sadd":
 			runner = operations.NewSaddBenchmark(testConfig)
@@ -65,13 +69,11 @@ func NewBenchmark(testOpDistribution map[string]int, testConfig *operations.Test
 				latencies["srem"] = make(map[int]int)
 				throughput["srem"] = new(operations.ThroughputResult)
 			}
-
 			break
 		case "smembers":
 			runner = operations.NewSmembersBenchmark(testConfig)
 			latencies[testName] = make(map[int]int)
 			throughput[testName] = new(operations.ThroughputResult)
-
 			break
 		case "srem":
 			runner = operations.NewSremBenchmark(testConfig)

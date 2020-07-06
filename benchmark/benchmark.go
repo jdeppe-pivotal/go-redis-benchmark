@@ -225,6 +225,14 @@ func (bm *Benchmark) Launch() {
 	for _, testName := range bm.TestNames {
 		bm.Runners[testName].Cleanup()
 	}
+
+	bm.closeClients()
+}
+
+func (bm *Benchmark) closeClients() {
+	for _, client := range bm.Clients {
+		client.Close()
+	}
 }
 
 func (bm *Benchmark) connectClients() {

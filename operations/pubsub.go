@@ -30,11 +30,11 @@ func NewPubSubBenchmark(config *TestConfig) *PubSubBenchmark {
 	}
 }
 
-func (bm *PubSubBenchmark) Setup(clients []*redis.Client) {
-	bm.subscribers = make([]*Subscriber, 0, bm.config.Variant1)
+func (pubsubby *PubSubBenchmark) Setup(clients []*redis.Client) {
+	pubsubby.subscribers = make([]*Subscriber, 0, pubsubby.config.Variant1)
 
 	// Establish connections for subscribers
-	for i := 0; i < bm.config.Variant1; i++ {
+	for i := 0; i < pubsubby.config.Variant1; i++ {
 		client := clients[i%len(clients)]
 		pubsub := client.Subscribe(CHANNEL)
 
@@ -47,30 +47,30 @@ func (bm *PubSubBenchmark) Setup(clients []*redis.Client) {
 			id:     i,
 			pubsub: pubsub,
 		}
-		bm.subscribers = append(bm.subscribers, subscription)
+		pubsubby.subscribers = append(pubsubby.subscribers, subscription)
 	}
 
-	bm.publisher = redis.NewClient(&redis.Options{
-		Addr:     bm.config.HostPort[0],
-		Password: bm.config.Password,
+	pubsubby.publisher = redis.NewClient(&redis.Options{
+		Addr:     pubsubby.config.HostPort[0],
+		Password: pubsubby.config.Password,
 	})
 
-	for _, s := range bm.subscribers {
-		go receiveMessages(s, bm.config.Results)
+	for _, s := range pubsubby.subscribers {
+		go receiveMessages(s, pubsubby.config.Results)
 	}
 }
 
-func (bm *PubSubBenchmark) Cleanup() {
-	for _, s := range bm.subscribers {
+func (pubsubby *PubSubBenchmark) Cleanup() {
+	for _, s := range pubsubby.subscribers {
 		_ = s.pubsub.Unsubscribe(CHANNEL)
 	}
 }
 
-func (bm *PubSubBenchmark) ResultsPerOperation() int32 {
-	return int32(bm.config.Variant1)
+func (pubsubby *PubSubBenchmark) ResultsPerOperation() int32 {
+	return int32(pubsubby.config.Variant1)
 }
 
-func (bm *PubSubBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult, key string, field string, value string) {
+func (pubsubby *PubSubBenchmark) DoOneOperation(client *redis.Client, results chan *OperationResult, key string, field string, value string) {
 	startTime := time.Now()
 	message := fmt.Sprintf("%d", startTime.UnixNano())
 	err := client.Publish(CHANNEL, message).Err()

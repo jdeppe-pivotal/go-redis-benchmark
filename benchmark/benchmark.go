@@ -244,6 +244,7 @@ func (bm *Benchmark) connectClients() {
 		client := redis.NewClient(&redis.Options{
 			Addr:     address,
 			Password: bm.TestConfig.Password,
+			ReadTimeout: 10 * time.Second,
 		})
 
 		clients = append(clients, client)

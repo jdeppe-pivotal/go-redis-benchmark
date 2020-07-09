@@ -29,7 +29,7 @@ func (smembers *SmembersBenchmark) Setup(clients []*redis.Client) {
 		client.Del(key)
 		for j := 0; j < smembers.config.Variant2; j++ {
 			member := CreateValue(j)
-			err := client.HSet(key, member).Err()
+			err := client.SAdd(key, member).Err()
 			if err != nil && !smembers.config.IgnoreErrors {
 				panic(err)
 			}

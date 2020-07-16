@@ -24,12 +24,15 @@ func NewSmembersBenchmark(config *TestConfig) Runner {
 func (smembers *SmembersBenchmark) Setup(clients []*redis.Client) {
 	client := clients[0]
 
-	for i := 0; i < smembers.config.Variant1; i++ {
-		key := CreateKey(i)
-		client.Del(key)
-		for j := 0; j < smembers.config.Variant2; j++ {
-			member := CreateValue(j)
-			err := client.SAdd(key, member).Err()
+	if smembers.config.Load {
+		for i := 0; i < smembers.config.Variant1; i++ {
+			key := CreateKey(i)
+			client.Del(key)
+			members := make([]string, smembers.config.Variant2)
+			for j := 0; j < smembers.config.Variant2; j++ {
+				members[j] = CreateValue(j)
+			}
+			err := client.SAdd(key, members).Err()
 			if err != nil && !smembers.config.IgnoreErrors {
 				panic(err)
 			}

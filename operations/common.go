@@ -18,6 +18,7 @@ type TestConfig struct {
 	IgnoreErrors bool
 	Churn        bool
 	Bulk         bool
+	Load         bool
 	Results      chan *OperationResult
 }
 

@@ -37,6 +37,7 @@ func processOptions(args []string) (map[string]int, *operations.TestConfig, bool
 	var ignoreErrors bool
 	var churn bool
 	var bulk bool
+	var load bool
 	var rawPercentiles bool
 
 	flagSet := flag.NewFlagSet("rbm", flag.ExitOnError)
@@ -59,13 +60,14 @@ func processOptions(args []string) (map[string]int, *operations.TestConfig, bool
   srem: the number of elements to add to each set
   smembers: the number of elements to add to each set
   del: the number of entries to create in a set before deleting it`)
-	flagSet.StringVar(&testNames, "t", "sadd", `comma-separated list of benchmark to run: del, echo, hgetall, hset, ping, pubsub, sadd, setOperations, smembers, srem
+	flagSet.StringVar(&testNames, "t", "sadd", `comma-separated list of benchmark to run: del, echo, get, hgetall, hset, ping, pubsub, sadd, set, setOperations, smembers, srem
   Each test can also be assigned a ratio. For example 'sadd:4,smembers:1' will randomly run sadd and smembers operations with a respective proportion of 4:1`)
 	flagSet.BoolVar(&flush, "flush", true, "flush before starting the benchmark run")
 	flagSet.BoolVar(&help, "help", false, "help")
 	flagSet.BoolVar(&ignoreErrors, "ignore-errors", false, "ignore errors from Redis calls")
 	flagSet.BoolVar(&bulk, "bulk", false, "sadd and srem will be given multiple members to add/remove based on -y option")
 	flagSet.BoolVar(&churn, "churn", false, "delete entries immediately after creation by sadd benchmark")
+	flagSet.BoolVar(&load, "load", false, "pre-load data before running the test. This is operation dependent, but will typically use the value for -x to determine how much data to load.")
 	flagSet.BoolVar(&rawPercentiles, "raw-percentiles", false, "show raw percentiles instead of a fixed (and calculated) set")
 
 	flagSet.Parse(args)
@@ -90,6 +92,7 @@ func processOptions(args []string) (map[string]int, *operations.TestConfig, bool
 		IgnoreErrors: ignoreErrors,
 		Churn:        churn,
 		Bulk:         bulk,
+		Load:         load,
 		Results:      make(chan *operations.OperationResult, clientCount*2),
 	}
 

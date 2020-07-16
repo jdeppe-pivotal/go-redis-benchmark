@@ -50,38 +50,24 @@ func NewBenchmark(testOpDistribution map[string]int, testConfig *operations.Test
 
 	for testName, _ := range testOpDistribution {
 		switch testName {
+		case "del":
+			runner = operations.NewDelBenchmark(testConfig)
+			latencies[testName] = make(map[int]int)
+			throughput[testName] = new(operations.ThroughputResult)
+
+			// Because del also does sadds
+			latencies["sadd"] = make(map[int]int)
+			throughput["sadd"] = new(operations.ThroughputResult)
+			break
 		case "echo":
 			runner = operations.NewEchoBenchmark(testConfig)
 			latencies[testName] = make(map[int]int)
 			throughput[testName] = new(operations.ThroughputResult)
 			break
-		case "ping":
-			runner = operations.NewPingBenchmark(testConfig)
+		case "get":
+			runner = operations.NewGetBenchmark(testConfig)
 			latencies[testName] = make(map[int]int)
 			throughput[testName] = new(operations.ThroughputResult)
-			break
-		case "sadd":
-			runner = operations.NewSaddBenchmark(testConfig)
-			latencies[testName] = make(map[int]int)
-			throughput[testName] = new(operations.ThroughputResult)
-
-			if testConfig.Churn {
-				latencies["srem"] = make(map[int]int)
-				throughput["srem"] = new(operations.ThroughputResult)
-			}
-			break
-		case "smembers":
-			runner = operations.NewSmembersBenchmark(testConfig)
-			latencies[testName] = make(map[int]int)
-			throughput[testName] = new(operations.ThroughputResult)
-			break
-		case "srem":
-			runner = operations.NewSremBenchmark(testConfig)
-			latencies[testName] = make(map[int]int)
-			throughput[testName] = new(operations.ThroughputResult)
-			// Because srem also does sadds
-			latencies["sadd"] = make(map[int]int)
-			throughput["sadd"] = new(operations.ThroughputResult)
 			break
 		case "hgetall":
 			runner = operations.NewHgetallBenchmark(testConfig)
@@ -98,19 +84,43 @@ func NewBenchmark(testOpDistribution map[string]int, testConfig *operations.Test
 				throughput["hdel"] = new(operations.ThroughputResult)
 			}
 			break
-		case "del":
-			runner = operations.NewDelBenchmark(testConfig)
+		case "ping":
+			runner = operations.NewPingBenchmark(testConfig)
 			latencies[testName] = make(map[int]int)
 			throughput[testName] = new(operations.ThroughputResult)
-
-			// Because del also does sadds
-			latencies["sadd"] = make(map[int]int)
-			throughput["sadd"] = new(operations.ThroughputResult)
 			break
 		case "pubsub":
 			runner = operations.NewPubSubBenchmark(testConfig)
 			latencies[testName] = make(map[int]int)
 			throughput[testName] = new(operations.ThroughputResult)
+			break
+		case "sadd":
+			runner = operations.NewSaddBenchmark(testConfig)
+			latencies[testName] = make(map[int]int)
+			throughput[testName] = new(operations.ThroughputResult)
+
+			if testConfig.Churn {
+				latencies["srem"] = make(map[int]int)
+				throughput["srem"] = new(operations.ThroughputResult)
+			}
+			break
+		case "set":
+			runner = operations.NewSetBenchmark(testConfig)
+			latencies[testName] = make(map[int]int)
+			throughput[testName] = new(operations.ThroughputResult)
+			break
+		case "smembers":
+			runner = operations.NewSmembersBenchmark(testConfig)
+			latencies[testName] = make(map[int]int)
+			throughput[testName] = new(operations.ThroughputResult)
+			break
+		case "srem":
+			runner = operations.NewSremBenchmark(testConfig)
+			latencies[testName] = make(map[int]int)
+			throughput[testName] = new(operations.ThroughputResult)
+			// Because srem also does sadds
+			latencies["sadd"] = make(map[int]int)
+			throughput["sadd"] = new(operations.ThroughputResult)
 			break
 		default:
 			if strings.HasPrefix(testName, "fakeTest") {
@@ -205,9 +215,9 @@ func (bm *Benchmark) SetWriter(writer io.Writer) {
 func (bm *Benchmark) Launch() {
 	bm.connectClients()
 
-	bm.setupRunners()
-
 	bm.flushAll()
+
+	bm.setupRunners()
 
 	bm.WaitGroup.Add(1)
 	go bm.processResults()
@@ -374,11 +384,11 @@ func (bm *Benchmark) PrintSummary() {
 		}
 
 		sort.Sort(sort.IntSlice(keys))
-		ascendingValues := make([]int, summedValues)
+		ascendingLatencies := make([]int, summedValues)
 		idx := 0
 		for _, k := range keys {
 			for i := 0; i < lateMap[k]; i++ {
-				ascendingValues[idx] = k
+				ascendingLatencies[idx] = k
 				idx++
 			}
 		}
@@ -393,10 +403,10 @@ func (bm *Benchmark) PrintSummary() {
 				remainingSummed -= lateMap[k]
 			}
 		} else {
-			percentiles := []int{100, 99, 98, 97, 96, 95, 94, 93, 92, 91, 90, 85, 80}
+			percentiles := []float64{100, 99.9, 99.8, 99.7, 99.6, 99.5, 99.4, 99.3, 99.2, 99.1, 99, 98, 97, 96, 95, 94, 93, 92, 91, 90, 85, 80}
 			for _, p := range percentiles {
-				value, position := bm.PercentileValue(p, ascendingValues)
-				fmt.Fprintf(bm.Writer, "% 4d%% <= %5.1f ms  (%d/%d)\n", p, value, position, summedValues)
+				value, position := bm.PercentileValue(p, ascendingLatencies)
+				fmt.Fprintf(bm.Writer, "%5.1f%% <= %5.1f ms  (%d/%d)\n", p, value, position, summedValues)
 			}
 		}
 
@@ -424,12 +434,12 @@ func (bm *Benchmark) PrintSummary() {
 
 //Return the value of the given percentile and the position in the list of results
 //at which it occurs.
-func (bm *Benchmark) PercentileValue(percentile int, sortedData []int) (float64, int) {
+func (bm *Benchmark) PercentileValue(percentile float64, sortedData []int) (float64, int) {
 	if percentile == 100 {
 		return float64(sortedData[len(sortedData)-1]), len(sortedData)
 	}
 
-	position := float64(len(sortedData)) * (float64(percentile) / 100)
+	position := float64(len(sortedData)) * (percentile / 100)
 	intPosition := int(math.Min(math.Ceil(position), float64(len(sortedData)-1)))
 
 	if intPosition == int(position) {

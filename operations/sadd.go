@@ -29,6 +29,13 @@ func (sadd *SaddBenchmark) Setup(clients []*redis.Client) {
 			sadd.members[j] = CreateValue(j)
 		}
 	}
+
+	client := clients[0]
+	if sadd.config.Load {
+		for i := 0; i < sadd.config.Variant1; i++ {
+			client.SAdd(CreateKey(i), "")
+		}
+	}
 }
 
 func (sadd *SaddBenchmark) Cleanup() {

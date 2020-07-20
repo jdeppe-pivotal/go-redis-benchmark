@@ -1,6 +1,7 @@
 package benchmark
 
 import (
+	"crypto/tls"
 	"fmt"
 	"github.com/go-redis/redis/v7"
 	"io"
@@ -251,11 +252,19 @@ func (bm *Benchmark) connectClients() {
 
 	clients := make([]*redis.Client, 0)
 	for _, address := range bm.TestConfig.HostPort {
-		client := redis.NewClient(&redis.Options{
+
+		clientOptions := &redis.Options{
 			Addr:     address,
 			Password: bm.TestConfig.Password,
-			ReadTimeout: 10 * time.Second,
-		})
+			ReadTimeout: 60 * time.Second,
+			PoolSize: bm.TestConfig.ClientCount,
+		}
+
+		if bm.TestConfig.Tls {
+			clientOptions.TLSConfig = &tls.Config{InsecureSkipVerify: true}
+		}
+
+		client := redis.NewClient(clientOptions)
 
 		clients = append(clients, client)
 	}
@@ -283,11 +292,7 @@ func (bm *Benchmark) flushAll() {
 	if bm.TestConfig.Flush {
 		fmt.Fprint(bm.Writer, "Flushing all... ")
 		flush := func() {
-			client := redis.NewClient(&redis.Options{
-				Addr:        bm.TestConfig.HostPort[0],
-				Password:    bm.TestConfig.Password,
-				ReadTimeout: time.Duration(60 * time.Second),
-			})
+			client := bm.Clients[0]
 			err := client.FlushAll().Err()
 			if err != nil {
 				panic(fmt.Sprintf("error calling FLUSHALL: %s", err.Error()))

@@ -1,6 +1,7 @@
 package operations
 
 import (
+	"crypto/tls"
 	"fmt"
 	"github.com/go-redis/redis/v7"
 	"strconv"
@@ -50,10 +51,16 @@ func (pubsubby *PubSubBenchmark) Setup(clients []*redis.Client) {
 		pubsubby.subscribers = append(pubsubby.subscribers, subscription)
 	}
 
-	pubsubby.publisher = redis.NewClient(&redis.Options{
+	clientOptions := redis.Options{
 		Addr:     pubsubby.config.HostPort[0],
 		Password: pubsubby.config.Password,
-	})
+	}
+
+	if pubsubby.config.Tls {
+		clientOptions.TLSConfig = &tls.Config{InsecureSkipVerify: true}
+	}
+
+	pubsubby.publisher = redis.NewClient(&clientOptions)
 
 	for _, s := range pubsubby.subscribers {
 		go receiveMessages(s, pubsubby.config.Results)

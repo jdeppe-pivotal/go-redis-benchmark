@@ -39,6 +39,7 @@ func processOptions(args []string) (map[string]int, *operations.TestConfig, bool
 	var bulk bool
 	var load bool
 	var rawPercentiles bool
+	var useTls bool
 
 	flagSet := flag.NewFlagSet("rbm", flag.ExitOnError)
 
@@ -68,6 +69,7 @@ func processOptions(args []string) (map[string]int, *operations.TestConfig, bool
 	flagSet.BoolVar(&bulk, "bulk", false, "sadd and srem will be given multiple members to add/remove based on -y option")
 	flagSet.BoolVar(&churn, "churn", false, "delete entries immediately after creation by sadd benchmark")
 	flagSet.BoolVar(&load, "load", false, "pre-load data before running the test. This is operation dependent, but will typically use the value for -x to determine how much data to load.")
+	flagSet.BoolVar(&useTls, "tls", false, "enable TLS for connections.")
 	flagSet.BoolVar(&rawPercentiles, "raw-percentiles", false, "show raw percentiles instead of a fixed (and calculated) set")
 
 	flagSet.Parse(args)
@@ -93,6 +95,7 @@ func processOptions(args []string) (map[string]int, *operations.TestConfig, bool
 		Churn:        churn,
 		Bulk:         bulk,
 		Load:         load,
+		Tls:	      useTls,
 		Results:      make(chan *operations.OperationResult, clientCount*2),
 	}
 

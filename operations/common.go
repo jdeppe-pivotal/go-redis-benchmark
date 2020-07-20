@@ -19,6 +19,7 @@ type TestConfig struct {
 	Churn        bool
 	Bulk         bool
 	Load         bool
+	Tls          bool
 	Results      chan *OperationResult
 }
 

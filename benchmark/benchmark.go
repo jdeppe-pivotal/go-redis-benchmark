@@ -251,13 +251,15 @@ func (bm *Benchmark) connectClients() {
 	fmt.Fprintf(bm.Writer, "Addresses: %s\n", addresses)
 
 	clients := make([]*redis.Client, 0)
-	for _, address := range bm.TestConfig.HostPort {
+	connectionsPerClient := int(math.Ceil(float64(bm.TestConfig.ClientCount) / float64(len(bm.TestConfig.HostPort))))
+	fmt.Fprintf(bm.Writer, "Connections per client: %d\n", connectionsPerClient)
 
+	for _, address := range bm.TestConfig.HostPort {
 		clientOptions := &redis.Options{
-			Addr:     address,
-			Password: bm.TestConfig.Password,
+			Addr:        address,
+			Password:    bm.TestConfig.Password,
 			ReadTimeout: 60 * time.Second,
-			PoolSize: bm.TestConfig.ClientCount,
+			PoolSize:    connectionsPerClient,
 		}
 
 		if bm.TestConfig.Tls {
@@ -297,7 +299,6 @@ func (bm *Benchmark) flushAll() {
 			if err != nil {
 				panic(fmt.Sprintf("error calling FLUSHALL: %s", err.Error()))
 			}
-			client.Close()
 		}
 
 		latency := bm.timedFunction(flush)

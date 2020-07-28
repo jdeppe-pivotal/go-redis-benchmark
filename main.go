@@ -95,7 +95,7 @@ func processOptions(args []string) (map[string]int, *operations.TestConfig, bool
 		Churn:        churn,
 		Bulk:         bulk,
 		Load:         load,
-		Tls:	      useTls,
+		Tls:          useTls,
 		Results:      make(chan *operations.OperationResult, clientCount*2),
 	}
 
